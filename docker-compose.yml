@@ -17,5 +17,34 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ecolentes-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro de la red de Docker la base se llama "db", no localhost.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ecolentes}:${POSTGRES_PASSWORD:-ecolentes}@db:5432/${POSTGRES_DB:-ecolentes}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en el .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      API_PORT: 3000
+    ports:
+      - "${API_PORT:-3000}:3000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: ecolentes-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
 volumes:
   ecolentes-db-data:
