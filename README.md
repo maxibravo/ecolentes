@@ -6,6 +6,24 @@ Primer alcance: la ficha única de la persona (identificada por DNI, con su hist
 
 ## Cómo levantarlo
 
+### Todo en Docker
+
+Hace falta sólo Docker.
+
+```bash
+cp .env.example .env     # poner un JWT_SECRET: openssl rand -base64 48
+pnpm docker:up           # o: docker compose up --build -d
+docker compose exec api pnpm --filter @ecolentes/api prisma:seed
+```
+
+La web queda en http://localhost:8080 y la API en http://localhost:3000. La API
+aplica las migraciones sola al arrancar; el último comando crea el primer usuario
+administrador y muestra su contraseña una sola vez.
+
+`pnpm docker:logs` muestra los registros y `pnpm docker:down` baja todo.
+
+### Para desarrollar
+
 Hace falta Node 22 o más, pnpm y Docker.
 
 ```bash

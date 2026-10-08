@@ -87,7 +87,7 @@ export function PersonForm({ dni, onCreated, onCancel }: Props) {
           />
         </div>
         <div>
-          <label htmlFor="ageAtIntake">Edad, si no tenés la fecha</label>
+          <label htmlFor="ageAtIntake">Edad, sólo si no tenés la fecha</label>
           <input
             id="ageAtIntake"
             type="number"
