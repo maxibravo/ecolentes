@@ -1,0 +1,10 @@
+// Esquema de la base. Los modelos del dominio (persona, expediente, receta)
+// se agregan en la etapa 1; acá queda sólo la conexión.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
