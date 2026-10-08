@@ -97,6 +97,11 @@ export class CasesService {
     const person = await this.prisma.person.findUnique({ where: { id: dto.personId } });
     if (!person) throw new NotFoundException('No existe esa ficha de persona');
 
+    // Hoy se trabaja con una sola óptica, así que se asigna sola y nadie
+    // tiene que elegirla. Si algún día hay más de una, se elige a mano.
+    const opticians = await this.prisma.optician.findMany({ where: { active: true }, take: 2 });
+    const onlyOptician = opticians.length === 1 ? opticians[0]!.id : null;
+
     const created = await this.prisma.$transaction(async (tx) => {
       const code = await nextCode(tx);
       const newCase = await tx.case.create({
@@ -105,6 +110,7 @@ export class CasesService {
           personId: dto.personId,
           channel: dto.channel,
           operationId: dto.operationId ?? null,
+          opticianId: onlyOptician,
           reason: dto.reason?.trim() || null,
           createdById: author.id,
         },
