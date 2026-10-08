@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "build:demo": "VITE_DEMO=1 vite build --outDir dist-demo",
+    "demo": "pnpm build:demo && node scripts/inline-demo.mjs dist-demo dist-demo/ecolentes-demo.html"
   },
   "dependencies": {
     "@ecolentes/shared": "workspace:*",

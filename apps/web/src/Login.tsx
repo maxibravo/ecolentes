@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { api, writeToken, type SessionUser } from './lib/api';
+import { api, IS_DEMO, writeToken, type SessionUser } from './lib/api';
 
 export function Login({ onLogin }: { onLogin: (user: SessionUser) => void }) {
   const [username, setUsername] = useState('');
@@ -47,6 +47,30 @@ export function Login({ onLogin }: { onLogin: (user: SessionUser) => void }) {
       />
 
       {error && <p className="error">{error}</p>}
+
+      {IS_DEMO && (
+        <div className="ok-box">
+          <p className="muted">
+            Versión de demostración, con datos inventados. Entrá con la contraseña{' '}
+            <strong>ecolentes</strong> y el usuario que quieras probar:
+          </p>
+          <div className="actions">
+            {['operador', 'oftalmologo', 'optica', 'direccion', 'redes'].map((u) => (
+              <button
+                key={u}
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setUsername(u);
+                  setPassword('ecolentes');
+                }}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <button type="submit" disabled={sending}>
         {sending ? 'Entrando…' : 'Entrar'}

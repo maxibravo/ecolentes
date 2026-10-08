@@ -61,6 +61,10 @@ model Person {
   firstName String
   lastName  String
 
+  /// Nombre y apellido sin acentos y en minúscula, para que la búsqueda
+  /// encuentre a Juárez escribiendo "juarez". Se recalcula en cada guardado.
+  searchName String @default("")
+
   /// Preferida sobre la edad, porque la edad envejece mal.
   birthDate   DateTime?
   /// La planilla de papel sólo anota la edad. Se guarda con la fecha en que se tomó,
@@ -80,6 +84,10 @@ model Person {
 
   notes String?
 
+  /// Lo que entra por el formulario público nadie lo vio en persona. Queda en
+  /// false hasta que un operador confirma la identidad; los reportes lo avisan.
+  identityVerified Boolean @default(true)
+
   createdById String?
   createdBy   User?   @relation("PersonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -89,6 +97,7 @@ model Person {
   cases Case[]
 
   @@index([lastName, firstName])
+  @@index([searchName])
   @@index([neighborhood])
   @@map("people")
 }
@@ -158,6 +167,13 @@ enum CaseHold {
   COMPLAINT
 }
 
+/// Por qué red llegó el mensaje. Sólo aplica cuando el canal es SOCIAL_MEDIA.
+enum SocialNetwork {
+  WHATSAPP
+  FACEBOOK
+  INSTAGRAM
+}
+
 /// Jornada de atención: dónde y cuándo. Lo que en la planilla es la columna
 /// "operativo en el que se realizó la atención", distinta del barrio de la persona.
 model Operation {
@@ -204,6 +220,8 @@ model Case {
   holdNote String?
 
   channel     IntakeChannel
+  /// Con channel = SOCIAL_MEDIA, por qué red escribió la persona.
+  socialNetwork SocialNetwork?
   operationId String?
   operation   Operation?    @relation(fields: [operationId], references: [id], onDelete: SetNull)
 
@@ -233,6 +251,7 @@ model Case {
   @@index([stage])
   @@index([personId])
   @@index([opticianId])
+  @@index([channel])
   @@map("cases")
 }
 

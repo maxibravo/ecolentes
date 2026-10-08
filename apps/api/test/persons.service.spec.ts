@@ -97,9 +97,29 @@ describe('PersonsService.update', () => {
     await service.update('p1', { firstName: 'Carolina del Huerto' }, author);
 
     const data = update.mock.calls[0][0].data;
-    expect(data).toEqual({ firstName: 'Carolina del Huerto' });
+    // searchName acompaña al nombre: es lo que se busca cuando nadie escribe
+    // los acentos, y tiene que quedar al día con el apellido que ya estaba.
+    expect(data).toEqual({ firstName: 'Carolina del Huerto', searchName: 'rojas carolina del huerto' });
     expect(data).not.toHaveProperty('phone');
     expect(data).not.toHaveProperty('neighborhood');
+  });
+
+  it('recalcula searchName sin acentos cuando cambia el apellido', async () => {
+    const update = jest.fn().mockResolvedValue({ ...stored, lastName: 'Ibáñez' });
+    const { service } = build(jest.fn().mockResolvedValue(stored), jest.fn(), update);
+
+    await service.update('p1', { lastName: 'Ibáñez' }, author);
+
+    expect(update.mock.calls[0][0].data.searchName).toBe('ibanez carolina');
+  });
+
+  it('no toca searchName cuando la edición no cambia el nombre', async () => {
+    const update = jest.fn().mockResolvedValue({ ...stored, phone: '3815550000' });
+    const { service } = build(jest.fn().mockResolvedValue(stored), jest.fn(), update);
+
+    await service.update('p1', { phone: '3815550000' }, author);
+
+    expect(update.mock.calls[0][0].data).not.toHaveProperty('searchName');
   });
 
   it('deja vaciar un campo a propósito cuando llega en blanco', async () => {

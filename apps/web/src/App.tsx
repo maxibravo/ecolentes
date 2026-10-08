@@ -5,21 +5,45 @@ import { PersonDetail } from './PersonDetail';
 import { CaseInbox } from './CaseInbox';
 import { CaseDetail } from './CaseDetail';
 import { NewCase } from './NewCase';
+import { Redes } from './Redes';
+import { Reports } from './Reports';
+import { PublicForm } from './PublicForm';
 import { ROLE_LABELS, writeToken, type Role, type SessionUser } from './lib/api';
 
-type Tab = 'bandeja' | 'personas' | 'nuevo';
+type Tab = 'bandeja' | 'personas' | 'nuevo' | 'redes' | 'indicadores';
 
 const TABS: { key: Tab; label: string; roles: Role[] | null }[] = [
   { key: 'bandeja', label: 'Expedientes', roles: null },
   { key: 'personas', label: 'Personas', roles: ['OPERATOR', 'OPHTHALMOLOGIST', 'DIRECTOR', 'SOCIAL_DESK', 'ADMIN'] },
   { key: 'nuevo', label: 'Pedido nuevo', roles: ['OPERATOR', 'SOCIAL_DESK', 'ADMIN'] },
+  { key: 'redes', label: 'Redes', roles: ['SOCIAL_DESK', 'OPERATOR', 'ADMIN'] },
+  // La óptica no entra a los reportes: ve sus propios expedientes y nada más.
+  { key: 'indicadores', label: 'Indicadores', roles: ['OPERATOR', 'OPHTHALMOLOGIST', 'DIRECTOR', 'SOCIAL_DESK', 'ADMIN'] },
 ];
+
+/**
+ * El formulario del vecino no pasa por el login. Vive en /solicitud, y también
+ * responde a #/solicitud para que ande donde la página se sirve desde una ruta
+ * que no se puede reescribir, como la versión de demostración.
+ */
+const PUBLIC_PATHS = ['/solicitud', '/solicitud/'];
+
+function isPublicForm(): boolean {
+  return (
+    PUBLIC_PATHS.includes(window.location.pathname) ||
+    window.location.hash.startsWith('#/solicitud')
+  );
+}
 
 export function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [tab, setTab] = useState<Tab>('bandeja');
   const [openCaseId, setOpenCaseId] = useState<string | null>(null);
   const [openPersonId, setOpenPersonId] = useState<string | null>(null);
+
+  if (isPublicForm()) {
+    return <PublicForm />;
+  }
 
   if (!user) {
     return (
@@ -81,6 +105,10 @@ export function App() {
           <CaseInbox onOpen={setOpenCaseId} />
         ) : tab === 'personas' ? (
           <Search onOpen={setOpenPersonId} />
+        ) : tab === 'redes' ? (
+          <Redes onOpen={setOpenCaseId} />
+        ) : tab === 'indicadores' ? (
+          <Reports role={user.role} onOpen={setOpenCaseId} />
         ) : (
           <NewCase onCreated={setOpenCaseId} />
         )}

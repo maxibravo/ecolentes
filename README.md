@@ -51,13 +51,46 @@ packages/shared  Tipos y constantes que usan los dos (roles, etapas, canales)
 
 Las etapas del expediente, los roles y los canales de ingreso viven en `packages/shared`, para que la API y la interfaz no se vayan cada una por su lado.
 
+## Por dónde entran los pedidos
+
+Un pedido puede llegar de territorio (relevamiento, tráiler, CAC, escuela), de un
+pedido individual o de concejales, o por fuera: redes y formulario público.
+
+- **Panel de redes**: quien atiende WhatsApp, Facebook e Instagram carga el pedido
+  sin salir de la conversación. No hay integración con Meta; esto la reemplaza.
+  Si la persona ya tiene un pedido abierto, avisa antes de abrir otro.
+- **Formulario público** (`/solicitud`): el link que se le pasa a quien prefiere
+  escribir sus datos. No pide usuario, así que **responde siempre lo mismo**,
+  exista o no un pedido para ese DNI, y no devuelve el número de expediente: con
+  cualquier otra respuesta el link serviría para averiguar quién pidió anteojos.
+  Lo que entra por ahí queda con la identidad sin verificar hasta que alguien de
+  Salud hable con la persona.
+
+## Reportes
+
+`/api/v1/reportes` tiene el resumen, el padrón de entregas, los pendientes de
+entrega y el detalle por persona. Quién ve nombres y quién no se decide en la API,
+no en la pantalla: Dirección y la óptica reciben los totales sin identidad, y el
+reporte por persona directamente se les niega.
+
+El resumen tiene una **vista para compartir** que oculta los números de uno y dos
+casos: en un barrio chico, un 1 alcanza para saber de quién se habla. Es la versión
+que puede salir hacia el sistema del municipio.
+
+## Versión de demostración
+
+`pnpm --filter @ecolentes/web demo` arma un único HTML que corre entero en el
+navegador, con un servidor de mentira y datos inventados, para mostrar el circuito
+sin levantar nada. Los datos de ejemplo están en `packages/shared/src/demo-data.ts`
+y los carga también `prisma:seed-demo` (pide `DEMO_SEED=si` para no correrse solo).
+
 ## Datos
 
-Las tablas de esta etapa son la persona, los usuarios y la auditoría. El expediente
-de anteojos llega en la etapa siguiente.
+El DNI identifica a la persona. Los nombres se guardan además sin acentos y en
+minúscula (`searchName`), para que buscar "juarez" encuentre a Juárez: nadie
+escribe el acento cuando está atendiendo.
 
-El DNI identifica a la persona y se guarda sin puntos, así `31.620.034` y `31620034`
-son la misma ficha. Antes de crear una ficha hay que buscar: si el DNI ya existe,
+El DNI se guarda sin puntos, así `31.620.034` y `31620034` son la misma ficha. Antes de crear una ficha hay que buscar: si el DNI ya existe,
 la API devuelve 409 con el id de la que ya está cargada.
 
 Cada acceso y cada cambio a una ficha quedan registrados con quién y cuándo. Una
