@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "jest",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:seed-demo": "ts-node prisma/seed-demo.ts"
   },
   "dependencies": {
     "@ecolentes/shared": "workspace:*",

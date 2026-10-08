@@ -1,4 +1,4 @@
-import { pairsFromText, parsePrescription } from '../src/cases/prescription-text';
+import { pairsFromText, parsePrescription } from '@ecolentes/shared';
 
 describe('graduación escrita en la planilla', () => {
   it('lee lejos de los dos ojos y la adición de cerca', () => {

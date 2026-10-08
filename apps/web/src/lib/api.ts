@@ -130,6 +130,157 @@ export type CaseDetail = CaseSummary & {
 
 export type Optician = { id: string; name: string };
 
+export type SocialNetwork = 'WHATSAPP' | 'FACEBOOK' | 'INSTAGRAM';
+
+/** Totales del resumen. Ninguno trae nombres: son números y nada más. */
+export type Summary = {
+  shareable: boolean;
+  kpis: {
+    requests: number;
+    people: number;
+    pairs: number;
+    deliveredCases: number;
+    deliveredPairs: number;
+    approvedNotDelivered: number;
+    open: number;
+    overdue: number;
+    onHold: number;
+    unverifiedIdentity: number;
+  };
+  byStage: { stage: CaseStage; total: number; pairs: number; overdue: number }[];
+  byChannel: { channel: IntakeChannel; total: number; pairs: number; overdue: number }[];
+  /** En la vista para compartir, un número chico llega en null. */
+  byNeighborhood: {
+    neighborhood: string;
+    open: number | null;
+    delivered: number | null;
+    overdue: number | null;
+  }[];
+  byOptician: { optician: string; total: number; pairs: number; overdue: number }[];
+};
+
+/** `person` llega en null cuando el rol no puede ver de quién se trata. */
+export type DeliveryRow = {
+  caseId: string;
+  code: string;
+  deliveredAt: string;
+  pairs: number;
+  channel: IntakeChannel;
+  neighborhood: string | null;
+  identityVerified: boolean;
+  isRepresentative: boolean;
+  handedBy: string | null;
+  note: string | null;
+  person: { name: string; dni: string } | null;
+  receivedBy: string;
+};
+
+export type DeliveriesReport = {
+  nominal: boolean;
+  totals: {
+    deliveries: number;
+    pairs: number;
+    byRepresentative: number;
+    unverifiedIdentity: number;
+  };
+  rows: DeliveryRow[];
+};
+
+export type PendingRow = {
+  caseId: string;
+  code: string;
+  stage: CaseStage;
+  hold: CaseHold | null;
+  pairs: number;
+  neighborhood: string | null;
+  stageSince: string;
+  overdue: boolean;
+  optician: string | null;
+  person: { name: string; dni: string } | null;
+};
+
+export type PendingReport = {
+  nominal: boolean;
+  totals: {
+    inHousePairs: number;
+    inHouseCases: number;
+    atOpticianPairs: number;
+    atOpticianCases: number;
+    overdue: number;
+  };
+  byNeighborhood: { neighborhood: string; pairs: number; rows: PendingRow[] }[];
+  atOptician: PendingRow[];
+};
+
+export type PersonReport = {
+  id: string;
+  name: string;
+  dni: string;
+  neighborhood: string | null;
+  phone: string | null;
+  identityVerified: boolean;
+  deliveredPairs: number;
+  openPairs: number;
+  cases: {
+    caseId: string;
+    code: string;
+    stage: CaseStage;
+    hold: CaseHold | null;
+    channel: IntakeChannel;
+    pairs: number;
+    reason: string | null;
+    createdAt: string;
+    overdue: boolean;
+    optician: string | null;
+    delivery: { deliveredAt: string; receivedBy: string; isRepresentative: boolean } | null;
+  }[];
+};
+
+export type IntakeRow = {
+  id: string;
+  code: string;
+  stage: CaseStage;
+  hold: CaseHold | null;
+  channel: IntakeChannel;
+  socialNetwork: SocialNetwork | null;
+  reason: string | null;
+  createdAt: string;
+  person: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    dni: string;
+    phone: string | null;
+    neighborhood: string | null;
+    identityVerified: boolean;
+  };
+};
+
+export type SocialIntakeInput = {
+  dni: string;
+  firstName: string;
+  lastName: string;
+  socialNetwork: SocialNetwork;
+  phone?: string;
+  neighborhood?: string;
+  reason?: string;
+  notes?: string;
+  force?: boolean;
+};
+
+export type SocialIntakeResult = {
+  created: boolean;
+  duplicate: { caseId: string; code: string; stage: CaseStage; createdAt: string } | null;
+  case: { id: string; code: string } | null;
+};
+
+/**
+ * La versión de demostración: todo corre en el navegador, con datos inventados
+ * y sin servidor. Las pantallas son las mismas; lo único distinto es de dónde
+ * salen los datos.
+ */
+export const IS_DEMO = import.meta.env.VITE_DEMO === '1';
+
 const TOKEN_KEY = 'ecolentes.token';
 
 export function readToken(): string | null {
@@ -159,7 +310,16 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * La versión de demostración instala acá un servidor de mentira que corre en el
+ * navegador. En la aplicación de verdad esto no existe y todo sale por fetch.
+ */
+type DemoHandler = <T>(path: string, init: RequestInit) => Promise<T>;
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const demo = (globalThis as { __ecolentesDemo?: DemoHandler }).__ecolentesDemo;
+  if (demo) return demo<T>(path, init);
+
   const token = readToken();
   const response = await fetch(`/api/v1${path}`, {
     ...init,
@@ -271,6 +431,50 @@ export const api = {
       body: JSON.stringify({ hold, note }),
     });
   },
+
+  summary(shareable: boolean) {
+    return request<Summary>(`/reportes/resumen${shareable ? '?shareable=true' : ''}`);
+  },
+  deliveriesReport() {
+    return request<DeliveriesReport>('/reportes/entregas');
+  },
+  pendingReport() {
+    return request<PendingReport>('/reportes/pendientes');
+  },
+  personReport(q: string, reason: string) {
+    const search = new URLSearchParams({ q });
+    if (reason) search.set('reason', reason);
+    return request<PersonReport[]>(`/reportes/por-persona?${search.toString()}`);
+  },
+
+  recentIntake() {
+    return request<IntakeRow[]>('/ingresos/redes');
+  },
+  intakeFromSocialMedia(input: SocialIntakeInput) {
+    return request<SocialIntakeResult>('/ingresos/redes', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  verifyIdentity(personId: string) {
+    return request<Person>(`/ingresos/personas/${personId}/verificar-identidad`, {
+      method: 'POST',
+    });
+  },
+  /** Lo manda el vecino desde el formulario público, sin estar logueado. */
+  submitPublicForm(input: {
+    dni: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    neighborhood?: string;
+    reason?: string;
+  }) {
+    return request<{ message: string }>('/ingresos/publico', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
 };
 
 export const STAGE_LABELS: Record<CaseStage, string> = {
@@ -314,6 +518,26 @@ export function daysSince(iso: string): number {
 /** 31620034 se muestra 31.620.034, como en la planilla. */
 export function formatDni(dni: string): string {
   return dni.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+export const SOCIAL_NETWORK_LABELS: Record<SocialNetwork, string> = {
+  WHATSAPP: 'WhatsApp',
+  FACEBOOK: 'Facebook',
+  INSTAGRAM: 'Instagram',
+};
+
+/** Dirección y la óptica no ven nombres en los reportes. */
+export function seesIdentityInReports(role: Role): boolean {
+  return role === 'OPERATOR' || role === 'OPHTHALMOLOGIST' || role === 'SOCIAL_DESK' || role === 'ADMIN';
+}
+
+/** dd/mm/aaaa, que es como se escriben las fechas acá. */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 export const ROLE_LABELS: Record<Role, string> = {

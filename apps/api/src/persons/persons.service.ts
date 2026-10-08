@@ -3,6 +3,7 @@ import { AuditAction, Prisma, type Person } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { normalizeDni } from '../common/dni';
+import { searchText } from '../common/search-text';
 import type { AuthenticatedUser } from '../common/current-user';
 import type { CreatePersonDto, SearchPersonDto, UpdatePersonDto } from './dto';
 
@@ -26,8 +27,8 @@ export class PersonsService {
       const digits = normalizeDni(q);
       where.OR = [
         ...(digits.length >= 3 ? [{ dni: { contains: digits } }] : []),
-        { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
-        { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+        // Contra searchName, que no tiene acentos: "juarez" encuentra a Juárez.
+        { searchName: { contains: searchText(q) } },
       ];
     }
     if (params.neighborhood) {
@@ -97,7 +98,7 @@ export class PersonsService {
 
     const person = await this.prisma.person.update({
       where: { id },
-      data: this.toPatchData(dto),
+      data: this.toPatchData(dto, before),
     });
 
     const changes = diff(before, person);
@@ -124,6 +125,7 @@ export class PersonsService {
     return {
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
+      searchName: searchText(dto.lastName, dto.firstName),
       birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
       ageAtIntake: dto.ageAtIntake ?? null,
       // La edad sólo sirve si se sabe cuándo se tomó.
@@ -144,11 +146,14 @@ export class PersonsService {
    * completo, una edición parcial borraría el teléfono o el barrio que
    * alguien cargó antes, sin que nadie se entere.
    */
-  private toPatchData(dto: UpdatePersonDto): Prisma.PersonUpdateInput {
+  private toPatchData(dto: UpdatePersonDto, before: Person): Prisma.PersonUpdateInput {
     const data: Prisma.PersonUpdateInput = {};
 
     if (dto.firstName !== undefined) data.firstName = dto.firstName.trim();
     if (dto.lastName !== undefined) data.lastName = dto.lastName.trim();
+    if (dto.firstName !== undefined || dto.lastName !== undefined) {
+      data.searchName = searchText(dto.lastName ?? before.lastName, dto.firstName ?? before.firstName);
+    }
     if (dto.birthDate !== undefined) data.birthDate = dto.birthDate ? new Date(dto.birthDate) : null;
     if (dto.ageAtIntake !== undefined) {
       data.ageAtIntake = dto.ageAtIntake;
@@ -176,7 +181,8 @@ export class PersonsService {
 /** Qué cambió, para dejarlo en la auditoría sin guardar la ficha entera. */
 function diff(before: Person, after: Person): Prisma.JsonObject {
   const changes: Prisma.JsonObject = {};
-  const skip = new Set(['updatedAt', 'createdAt', 'id']);
+  // searchName se deriva del nombre: anotarlo sería repetir el mismo cambio.
+  const skip = new Set(['updatedAt', 'createdAt', 'id', 'searchName']);
 
   for (const key of Object.keys(after) as (keyof Person)[]) {
     if (skip.has(key)) continue;

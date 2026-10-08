@@ -7,11 +7,12 @@ import {
   type Case,
   type CaseHold,
 } from '@prisma/client';
-import { canMove, isOverdue, STAGE_RULES } from '@ecolentes/shared';
+import { canMove, isOverdue, pairsFromText, parsePrescription, STAGE_RULES } from '@ecolentes/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizeDni } from '../common/dni';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../common/current-user';
-import { pairsFromText, parsePrescription } from './prescription-text';
+import { searchText } from '../common/search-text';
 import type {
   CreateCaseDto,
   DecideQuoteDto,
@@ -39,10 +40,13 @@ export class CasesService {
       };
     }
     if (params.q) {
+      const digits = normalizeDni(params.q);
       where.OR = [
         { code: { contains: params.q, mode: Prisma.QueryMode.insensitive } },
-        { person: { lastName: { contains: params.q, mode: Prisma.QueryMode.insensitive } } },
-        { person: { dni: { contains: params.q.replace(/\D/g, '') } } },
+        { person: { searchName: { contains: searchText(params.q) } } },
+        // Sin este corte, buscar un apellido deja `contains: ''` en el DNI, que
+        // le da verdadero a todas las filas y devuelve la bandeja entera.
+        ...(digits.length >= 3 ? [{ person: { dni: { contains: digits } } }] : []),
       ];
     }
     // La óptica ve sólo los expedientes que son suyos, y sólo mientras le

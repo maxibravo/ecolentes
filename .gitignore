@@ -8,3 +8,4 @@ build/
 apps/api/generated/
 coverage/
 *.tsbuildinfo
+dist-demo/
