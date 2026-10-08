@@ -46,6 +46,10 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "rootDir": ".",
-    "testRegex": "test/.*\\.spec\\.ts$"
+    "testRegex": "test/.*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^@ecolentes/shared$": "<rootDir>/../../packages/shared/src/index.ts",
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
   }
 }

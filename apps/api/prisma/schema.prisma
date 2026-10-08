@@ -33,11 +33,22 @@ model User {
   /// Obliga a cambiar la contraseña en el primer ingreso.
   mustChangePassword Boolean   @default(true)
   lastLoginAt        DateTime?
+  /// Para los usuarios de rol OPTICIAN: a qué óptica pertenecen. Sin esto, un
+  /// usuario de una óptica vería los expedientes de las demás.
+  opticianId         String?
+  optician           Optician? @relation(fields: [opticianId], references: [id], onDelete: SetNull)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
   createdPersons Person[]   @relation("PersonCreatedBy")
   auditEntries   AuditLog[]
+
+  operations             Operation[]    @relation("OperationOphthalmologist")
+  createdCases           Case[]         @relation("CaseCreatedBy")
+  validatedPrescriptions Prescription[] @relation("PrescriptionValidatedBy")
+  decidedQuotes          Quote[]        @relation("QuoteDecidedBy")
+  handedDeliveries       Delivery[]     @relation("DeliveryHandedBy")
+  caseEvents             CaseEvent[]    @relation("CaseEventUser")
 
   @@map("users")
 }
@@ -51,11 +62,11 @@ model Person {
   lastName  String
 
   /// Preferida sobre la edad, porque la edad envejece mal.
-  birthDate DateTime?
+  birthDate   DateTime?
   /// La planilla de papel sólo anota la edad. Se guarda con la fecha en que se tomó,
   /// para poder estimar después y para saber que esa ficha quedó incompleta.
-  ageAtIntake      Int?
-  ageTakenAt       DateTime?
+  ageAtIntake Int?
+  ageTakenAt  DateTime?
 
   sex          Sex?
   phone        String?
@@ -74,6 +85,8 @@ model Person {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  cases Case[]
 
   @@index([lastName, firstName])
   @@index([neighborhood])
@@ -109,4 +122,220 @@ model AuditLog {
   @@index([userId])
   @@index([occurredAt])
   @@map("audit_logs")
+}
+
+enum CaseStage {
+  REQUEST
+  ASSESSMENT
+  OPTICIAN_QUOTE
+  APPROVAL
+  PRODUCTION
+  RECEIVED
+  READY_FOR_PICKUP
+  DELIVERED
+  CLOSED
+}
+
+enum IntakeChannel {
+  NEIGHBORHOOD_SURVEY
+  COUNCIL_REQUEST
+  INDIVIDUAL_REQUEST
+  TRAILER
+  CAC
+  SCHOOL
+  SOCIAL_MEDIA
+  PUBLIC_FORM
+}
+
+/// Por qué un expediente quedó frenado sin estar cerrado.
+enum CaseHold {
+  MISSING_DOCUMENTS
+  QUOTE_OBSERVED
+  REJECTED
+  DELAYED
+  NOT_LOCATED
+  WITHDRAWN
+  COMPLAINT
+}
+
+/// Jornada de atención: dónde y cuándo. Lo que en la planilla es la columna
+/// "operativo en el que se realizó la atención", distinta del barrio de la persona.
+model Operation {
+  id                String   @id @default(uuid())
+  name              String
+  date              DateTime
+  /// Oftalmólogo a cargo de la jornada. En la planilla se repite en cada fila.
+  ophthalmologistId String?
+  ophthalmologist   User?    @relation("OperationOphthalmologist", fields: [ophthalmologistId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+
+  cases Case[]
+
+  @@index([date])
+  @@map("operations")
+}
+
+model Optician {
+  id      String  @id @default(uuid())
+  name    String  @unique
+  phone   String?
+  address String?
+  active  Boolean @default(true)
+
+  cases  Case[]
+  quotes Quote[]
+  users  User[]
+
+  @@map("opticians")
+}
+
+/// Un pedido de anteojos de punta a punta.
+model Case {
+  id   String @id @default(uuid())
+  /// Lo que la gente dice por teléfono: ECO-0142.
+  code String @unique
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id])
+
+  stage    CaseStage @default(REQUEST)
+  /// Si está frenado, por qué. No cierra el expediente.
+  hold     CaseHold?
+  holdNote String?
+
+  channel     IntakeChannel
+  operationId String?
+  operation   Operation?    @relation(fields: [operationId], references: [id], onDelete: SetNull)
+
+  opticianId String?
+  optician   Optician? @relation(fields: [opticianId], references: [id], onDelete: SetNull)
+
+  /// Cuántos pares: lejos y cerca son dos. Lo decide la receta.
+  pairs Int @default(1)
+
+  reason String?
+
+  /// Cuándo entró en la etapa actual, para medir demoras.
+  stageSince DateTime  @default(now())
+  closedAt   DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("CaseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prescription Prescription?
+  quotes       Quote[]
+  delivery     Delivery?
+  events       CaseEvent[]
+
+  @@index([stage])
+  @@index([personId])
+  @@index([opticianId])
+  @@map("cases")
+}
+
+/// La graduación. Se guarda el texto tal como lo escribió el profesional y
+/// además los valores separados, para no volver a tipear en la óptica.
+model Prescription {
+  id     String @id @default(uuid())
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  /// "LEJOS OD 180°-3,50 // OI 180°-2,75 - CERCA ADD+1,50 AO"
+  rawText String
+
+  farRightSphere   Decimal? @db.Decimal(4, 2)
+  farRightCylinder Decimal? @db.Decimal(4, 2)
+  farRightAxis     Int?
+  farLeftSphere    Decimal? @db.Decimal(4, 2)
+  farLeftCylinder  Decimal? @db.Decimal(4, 2)
+  farLeftAxis      Int?
+  nearAddition     Decimal? @db.Decimal(4, 2)
+
+  /// Una receta cargada por un administrativo no vale hasta que el profesional la valida.
+  validatedById String?
+  validatedBy   User?     @relation("PrescriptionValidatedBy", fields: [validatedById], references: [id], onDelete: SetNull)
+  validatedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("prescriptions")
+}
+
+enum QuoteStatus {
+  SUBMITTED
+  APPROVED
+  OBSERVED
+}
+
+/// Propuesta de la óptica. Una observación no se pisa: genera una versión nueva.
+model Quote {
+  id      String @id @default(uuid())
+  caseId  String
+  case    Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  version Int
+
+  opticianId String
+  optician   Optician @relation(fields: [opticianId], references: [id])
+
+  lenses   String
+  frame    String
+  /// Días de fabricación que promete la óptica.
+  leadDays Int?
+  amount   Decimal? @db.Decimal(12, 2)
+  notes    String?
+
+  status QuoteStatus @default(SUBMITTED)
+
+  decidedById  String?
+  decidedBy    User?     @relation("QuoteDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt    DateTime?
+  /// Por qué se aprobó o se observó. Queda a la vista de la óptica.
+  decisionNote String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([caseId, version])
+  @@map("quotes")
+}
+
+model Delivery {
+  id     String @id @default(uuid())
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  deliveredAt      DateTime
+  /// Quién se los llevó: la persona o su representante.
+  receivedBy       String
+  isRepresentative Boolean  @default(false)
+  note             String?
+
+  handedById String?
+  handedBy   User?   @relation("DeliveryHandedBy", fields: [handedById], references: [id], onDelete: SetNull)
+
+  @@map("deliveries")
+}
+
+/// El historial del expediente, que es lo que se ve en la ficha.
+model CaseEvent {
+  id     String @id @default(uuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  fromStage CaseStage?
+  toStage   CaseStage?
+  hold      CaseHold?
+  note      String?
+
+  userId   String?
+  user     User?   @relation("CaseEventUser", fields: [userId], references: [id], onDelete: SetNull)
+  username String?
+
+  occurredAt DateTime @default(now())
+
+  @@index([caseId, occurredAt])
+  @@map("case_events")
 }
