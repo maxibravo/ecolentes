@@ -30,8 +30,14 @@ export class JwtAuthGuard implements CanActivate {
         sub: string;
         username: string;
         role: AuthenticatedUser['role'];
+        opticianId?: string | null;
       }>(header.slice('Bearer '.length));
-      request.user = { id: payload.sub, username: payload.username, role: payload.role };
+      request.user = {
+        id: payload.sub,
+        username: payload.username,
+        role: payload.role,
+        opticianId: payload.opticianId ?? null,
+      };
       return true;
     } catch {
       throw new UnauthorizedException('El token de acceso no es válido o venció');
