@@ -1,25 +1,52 @@
-import { useEffect, useState } from 'react';
-
-type Health = { status: string; service: string };
+import { useState } from 'react';
+import { Login } from './Login';
+import { Search } from './Search';
+import { PersonDetail } from './PersonDetail';
+import { ROLE_LABELS, writeToken, type SessionUser } from './lib/api';
 
 export function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState(false);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [openPersonId, setOpenPersonId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch('/api/v1/health')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then(setHealth)
-      .catch(() => setError(true));
-  }, []);
+  if (!user) {
+    return (
+      <main className="centered">
+        <Login onLogin={setUser} />
+      </main>
+    );
+  }
 
   return (
-    <main>
-      <h1>Ecolentes</h1>
-      <p>Sistema de salud territorial · Dirección de Salud, San Miguel de Tucumán</p>
-      <p className="state">
-        {health ? 'Conectado con la API.' : error ? 'Sin conexión con la API.' : 'Conectando…'}
-      </p>
-    </main>
+    <>
+      <header className="topbar">
+        <strong>Ecolentes</strong>
+        <span className="who">
+          {user.fullName} · {ROLE_LABELS[user.role]}
+        </span>
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            writeToken(null);
+            setUser(null);
+            setOpenPersonId(null);
+          }}
+        >
+          Salir
+        </button>
+      </header>
+
+      <main>
+        {openPersonId ? (
+          <PersonDetail
+            id={openPersonId}
+            role={user.role}
+            onBack={() => setOpenPersonId(null)}
+          />
+        ) : (
+          <Search onOpen={setOpenPersonId} />
+        )}
+      </main>
+    </>
   );
 }

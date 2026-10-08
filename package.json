@@ -2,19 +2,28 @@
   "name": "ecolentes",
   "private": true,
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "db:up": "docker compose up -d db",
     "db:generate": "pnpm --filter @ecolentes/api prisma:generate",
-    "db:migrate": "pnpm --filter @ecolentes/api prisma:migrate"
+    "db:migrate": "pnpm --filter @ecolentes/api prisma:migrate",
+    "db:seed": "pnpm --filter @ecolentes/api prisma:seed"
   },
   "devDependencies": {
     "typescript": "^5.7.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "esbuild", "prisma"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma"
+    ]
   }
 }

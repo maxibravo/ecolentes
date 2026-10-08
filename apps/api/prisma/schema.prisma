@@ -1,5 +1,3 @@
-// Esquema de la base. Los modelos del dominio (persona, expediente, receta)
-// se agregan en la etapa 1; acá queda sólo la conexión.
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,4 +5,108 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OPERATOR
+  OPHTHALMOLOGIST
+  OPTICIAN
+  DIRECTOR
+  SOCIAL_DESK
+  ADMIN
+}
+
+enum Sex {
+  FEMENINO
+  MASCULINO
+  OTRO
+}
+
+/// Usuario del sistema. El alta la hace un ADMIN; nadie se registra solo.
+model User {
+  id                 String    @id @default(uuid())
+  username           String    @unique
+  passwordHash       String
+  fullName           String
+  role               Role
+  active             Boolean   @default(true)
+  /// Obliga a cambiar la contraseña en el primer ingreso.
+  mustChangePassword Boolean   @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  createdPersons Person[]   @relation("PersonCreatedBy")
+  auditEntries   AuditLog[]
+
+  @@map("users")
+}
+
+/// La persona atendida. El DNI es obligatorio y es lo que evita fichas duplicadas.
+model Person {
+  id        String @id @default(uuid())
+  /// Sólo dígitos, sin puntos. La planilla de papel lo escribe como 31.620.034.
+  dni       String @unique
+  firstName String
+  lastName  String
+
+  /// Preferida sobre la edad, porque la edad envejece mal.
+  birthDate DateTime?
+  /// La planilla de papel sólo anota la edad. Se guarda con la fecha en que se tomó,
+  /// para poder estimar después y para saber que esa ficha quedó incompleta.
+  ageAtIntake      Int?
+  ageTakenAt       DateTime?
+
+  sex          Sex?
+  phone        String?
+  address      String?
+  neighborhood String?
+
+  /// Para menores de edad y para quien no puede gestionar por su cuenta.
+  representativeName  String?
+  representativePhone String?
+  representativeBond  String?
+
+  notes String?
+
+  createdById String?
+  createdBy   User?   @relation("PersonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([neighborhood])
+  @@map("people")
+}
+
+enum AuditAction {
+  VIEW
+  CREATE
+  UPDATE
+  LOGIN
+  LOGIN_FAILED
+}
+
+/// Quién vio y quién cambió cada cosa. Se escribe desde el primer día:
+/// si se agrega más adelante, lo anterior queda sin registro.
+model AuditLog {
+  id         String      @id @default(uuid())
+  action     AuditAction
+  /// Nombre del modelo afectado, por ejemplo "Person".
+  entity     String
+  entityId   String?
+  /// Para UPDATE, los campos que cambiaron. Nunca guarda el valor de una contraseña.
+  changes    Json?
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  /// Se conserva el nombre de usuario por si la cuenta se borra.
+  username   String?
+  ipAddress  String?
+  occurredAt DateTime    @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([occurredAt])
+  @@map("audit_logs")
 }
