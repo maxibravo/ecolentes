@@ -65,8 +65,11 @@ POSTGRES_PORT=5434
 DATABASE_URL=postgresql://ecolentes:ecolentes@localhost:5434/ecolentes?schema=public
 ```
 
-Lo mismo vale para `WEB_PORT` y `API_PORT` si el 8080 o el 3000 están ocupados.
-Adentro de Docker los servicios se siguen hablando por sus puertos de siempre.
+Lo mismo vale para `WEB_DEV_PORT` (la web mientras se desarrolla), `WEB_PORT`
+(la web en Docker) y `API_PORT`, si el 5173, el 8080 o el 3000 están ocupados.
+Al cambiar `API_PORT` hay que mover también `WEB_API_URL`, que es por donde la
+web busca a la API. Adentro de Docker los servicios se siguen hablando por sus
+puertos de siempre.
 
 El `.env` es uno solo y vive en la raíz, aunque la API y Prisma corran desde
 `apps/api`: de eso se encarga `apps/api/scripts/with-env.mjs`, y lo que ya esté
