@@ -11,6 +11,7 @@ import { PersonsModule } from './persons/persons.module';
 import { CasesModule } from './cases/cases.module';
 import { IntakeModule } from './intake/intake.module';
 import { ReportsModule } from './reports/reports.module';
+import { IntegrationModule } from './integration/integration.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ReportsModule } from './reports/reports.module';
     CasesModule,
     IntakeModule,
     ReportsModule,
+    IntegrationModule,
   ],
   controllers: [HealthController],
   providers: [

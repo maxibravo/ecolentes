@@ -34,7 +34,24 @@ export class ReportsService {
    */
   async summary(params: SummaryDto, viewer: AuthenticatedUser) {
     const shareable = params.shareable === 'true';
+    const data = await this.summaryData(shareable);
 
+    await this.audit.record({
+      action: AuditAction.VIEW,
+      entity: 'Report',
+      entityId: shareable ? 'resumen-compartible' : 'resumen',
+      userId: viewer.id,
+      username: viewer.username,
+    });
+
+    return data;
+  }
+
+  /**
+   * El cálculo del resumen, sin registrar nada. Lo usan la pantalla de
+   * indicadores y la API del municipio, que auditan cada una a su manera.
+   */
+  async summaryData(shareable: boolean) {
     const cases = await this.prisma.case.findMany({
       select: {
         stage: true,
@@ -90,14 +107,6 @@ export class ReportsService {
     const byOptician = groupBy(atOptician, (c) => c.optician?.name ?? 'Sin óptica asignada').map(
       ([optician, list]) => ({ optician, ...count(list) }),
     );
-
-    await this.audit.record({
-      action: AuditAction.VIEW,
-      entity: 'Report',
-      entityId: shareable ? 'resumen-compartible' : 'resumen',
-      userId: viewer.id,
-      username: viewer.username,
-    });
 
     return {
       shareable,

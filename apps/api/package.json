@@ -11,7 +11,8 @@
     "prisma:migrate": "node scripts/with-env.mjs prisma migrate dev",
     "test": "jest",
     "prisma:seed": "node scripts/with-env.mjs ts-node prisma/seed.ts",
-    "prisma:seed-demo": "node scripts/with-env.mjs ts-node prisma/seed-demo.ts"
+    "prisma:seed-demo": "node scripts/with-env.mjs ts-node prisma/seed-demo.ts",
+    "service-client": "node scripts/with-env.mjs ts-node prisma/service-client.ts"
   },
   "dependencies": {
     "@ecolentes/shared": "workspace:*",
