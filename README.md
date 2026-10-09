@@ -28,6 +28,9 @@ Hace falta Node 22 o más, pnpm y Docker.
 
 ```bash
 cp .env.example .env
+# poner un JWT_SECRET de verdad:
+openssl rand -base64 48
+
 pnpm install
 pnpm db:up          # levanta PostgreSQL en Docker
 pnpm db:generate    # genera el cliente de Prisma
@@ -40,6 +43,21 @@ El seed muestra la contraseña del administrador una sola vez. Al entrar, el sis
 pide cambiarla.
 
 Para comprobar que anda: `curl http://localhost:3000/api/v1/health` devuelve `{"status":"ok"}`, y la web en http://localhost:5173 avisa si llega a la API.
+
+Para ver el sistema con datos y no con la base vacía, en lugar de `pnpm db:seed`:
+
+```bash
+DEMO_SEED=si pnpm db:seed-demo
+```
+
+Crea un usuario por rol (`operador`, `oftalmologo`, `optica`, `direccion`, `redes`,
+contraseña `ecolentes2026`) y expedientes de ejemplo en todas las etapas. Los datos
+son inventados; los barrios son los de San Miguel de Tucumán.
+
+El `.env` es uno solo y vive en la raíz, aunque la API y Prisma corran desde
+`apps/api`: de eso se encarga `apps/api/scripts/with-env.mjs`, y lo que ya esté
+en el entorno le gana al archivo. `packages/shared` se compila antes de arrancar,
+porque la API y la web lo consumen desde su `dist/`, que no está en el repositorio.
 
 ## Cómo está organizado
 

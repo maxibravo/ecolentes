@@ -14,7 +14,14 @@ import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // El .env es uno solo y vive en la raíz del monorepo, pero la API
+      // arranca desde apps/api. Sin la segunda ruta, `pnpm dev` sobre un clon
+      // recién hecho no encuentra ni DATABASE_URL ni JWT_SECRET. En Docker no
+      // hay archivo y las variables llegan por el entorno, que siempre gana.
+      envFilePath: ['.env', '../../.env'],
+    }),
     PrismaModule,
     AuditModule,
     AuthModule,

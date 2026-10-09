@@ -8,10 +8,10 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "node scripts/with-env.mjs prisma migrate dev",
     "test": "jest",
-    "prisma:seed": "ts-node prisma/seed.ts",
-    "prisma:seed-demo": "ts-node prisma/seed-demo.ts"
+    "prisma:seed": "node scripts/with-env.mjs ts-node prisma/seed.ts",
+    "prisma:seed-demo": "node scripts/with-env.mjs ts-node prisma/seed-demo.ts"
   },
   "dependencies": {
     "@ecolentes/shared": "workspace:*",
@@ -41,7 +41,7 @@
     "typescript": "^5.7.3"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node scripts/with-env.mjs ts-node prisma/seed.ts"
   },
   "jest": {
     "preset": "ts-jest",
