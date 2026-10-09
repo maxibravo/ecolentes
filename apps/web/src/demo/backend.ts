@@ -544,6 +544,85 @@ export function installDemoBackend(): void {
       return person;
     }
 
+    // --- Usuarios
+    if (route.startsWith('/usuarios')) {
+      if (session.role !== 'ADMIN') {
+        throw new DemoError('Tu rol no tiene permiso para esta acción', 403);
+      }
+
+      const shown = (u: DemoState['users'][number]) => ({
+        ...u,
+        mustChangePassword: false,
+        lastLoginAt: null,
+        createdAt: new Date().toISOString(),
+        optician: u.opticianId ? { id: u.opticianId, name: state.opticianName } : null,
+      });
+
+      if (route === '/usuarios/opticas') {
+        return [{ id: state.opticianId, name: state.opticianName }];
+      }
+
+      if (route === '/usuarios' && method === 'GET') {
+        return state.users.map(shown);
+      }
+
+      if (route === '/usuarios' && method === 'POST') {
+        const username = str(body.username).toLowerCase();
+        if (state.users.some((u) => u.username === username)) {
+          throw new DemoError(`Ya hay un usuario que se llama "${username}"`, 409);
+        }
+        const role = str(body.role) as Role;
+        if (role === 'OPTICIAN' && !str(body.opticianId)) {
+          throw new DemoError(
+            'El perfil Óptica necesita que elijas a qué óptica pertenece',
+            400,
+          );
+        }
+        const user = {
+          id: `u-${username}`,
+          username,
+          fullName: str(body.fullName),
+          role,
+          opticianId: role === 'OPTICIAN' ? state.opticianId : null,
+          active: true,
+        };
+        state.users = [...state.users, user];
+        // En la demostración la contraseña es siempre la misma, así que se
+        // muestra esa: no hay dónde guardar una distinta por usuario.
+        return { user: shown(user), password: DEMO_PASSWORD };
+      }
+
+      const userMatch = /^\/usuarios\/([^/]+)(\/contrasena)?$/.exec(route);
+      const user = userMatch ? state.users.find((u) => u.id === userMatch[1]) : undefined;
+      if (!user) throw new DemoError('Ese usuario no existe', 404);
+
+      if (userMatch?.[2]) return { password: DEMO_PASSWORD };
+
+      if (method === 'PATCH') {
+        const quitandoAdmin =
+          user.role === 'ADMIN' && (body.role !== undefined || body.active === false);
+        if (user.id === session.id && (body.active === false || body.role !== undefined)) {
+          throw new DemoError(
+            'No podés cambiarte el perfil ni darte de baja a vos mismo. Pedíselo a otro administrador',
+            400,
+          );
+        }
+        if (
+          quitandoAdmin &&
+          state.users.filter((u) => u.role === 'ADMIN' && u.active && u.id !== user.id).length === 0
+        ) {
+          throw new DemoError('Es el único administrador activo. Creá otro antes de cambiar este', 400);
+        }
+        if (body.fullName !== undefined) user.fullName = str(body.fullName);
+        if (body.active !== undefined) user.active = body.active === true;
+        if (body.role !== undefined) {
+          user.role = str(body.role) as Role;
+          user.opticianId = user.role === 'OPTICIAN' ? state.opticianId : null;
+        }
+        return shown(user);
+      }
+    }
+
     // --- Reportes
     if (route.startsWith('/reportes/')) {
       if (session.role === 'OPTICIAN') {

@@ -30,7 +30,7 @@ export type DemoCaseRecord = Omit<CaseDetail, 'person'> & {
 };
 
 export type DemoState = {
-  users: (SessionUser & { username: string; opticianId: string | null })[];
+  users: (SessionUser & { username: string; opticianId: string | null; active: boolean })[];
   people: DemoPersonRecord[];
   cases: DemoCaseRecord[];
   opticianId: string;
@@ -72,22 +72,16 @@ function readPrescription(rawText: string, daysInStage: number) {
 export function buildState(): DemoState {
   const opticianId = 'opt-1';
 
-  const users: DemoState['users'] = [
-    ...DEMO_USERS.map((u) => ({
-      id: `u-${u.username}`,
-      username: u.username,
-      fullName: u.fullName,
-      role: u.role as Role,
-      opticianId: u.role === 'OPTICIAN' ? opticianId : null,
-    })),
-    {
-      id: 'u-admin',
-      username: 'admin',
-      fullName: 'Administrador',
-      role: 'ADMIN' as Role,
-      opticianId: null,
-    },
-  ];
+  // El administrador sale de DEMO_USERS como todos los demás, así que los datos
+  // de ejemplo del navegador y los de la base dicen lo mismo.
+  const users: DemoState['users'] = DEMO_USERS.map((u) => ({
+    id: `u-${u.username}`,
+    username: u.username,
+    fullName: u.fullName,
+    role: u.role as Role,
+    opticianId: u.role === 'OPTICIAN' ? opticianId : null,
+    active: true,
+  }));
 
   const people: DemoPersonRecord[] = DEMO_PEOPLE.map((p) => ({
     id: `p-${p.dni}`,
