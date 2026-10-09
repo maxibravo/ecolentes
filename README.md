@@ -54,6 +54,20 @@ Crea un usuario por rol (`operador`, `oftalmologo`, `optica`, `direccion`, `rede
 contraseña `ecolentes2026`) y expedientes de ejemplo en todas las etapas. Los datos
 son inventados; los barrios son los de San Miguel de Tucumán.
 
+Si la máquina ya tiene otro PostgreSQL escuchando en el 5432, el nuestro no se
+puede alcanzar aunque el contenedor esté sano: `localhost` entra al que ya estaba
+y ahí el usuario `ecolentes` no existe (Prisma lo informa como
+`P1010: User was denied access`). Se resuelve moviendo el nuestro de puerto, con
+`POSTGRES_PORT` en el `.env` y el mismo puerto en el `DATABASE_URL`:
+
+```bash
+POSTGRES_PORT=5434
+DATABASE_URL=postgresql://ecolentes:ecolentes@localhost:5434/ecolentes?schema=public
+```
+
+Lo mismo vale para `WEB_PORT` y `API_PORT` si el 8080 o el 3000 están ocupados.
+Adentro de Docker los servicios se siguen hablando por sus puertos de siempre.
+
 El `.env` es uno solo y vive en la raíz, aunque la API y Prisma corran desde
 `apps/api`: de eso se encarga `apps/api/scripts/with-env.mjs`, y lo que ya esté
 en el entorno le gana al archivo. `packages/shared` se compila antes de arrancar,
