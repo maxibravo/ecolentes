@@ -7,6 +7,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { UsersModule } from './users/users.module';
 import { PersonsModule } from './persons/persons.module';
 import { CasesModule } from './cases/cases.module';
 import { IntakeModule } from './intake/intake.module';
@@ -26,6 +27,7 @@ import { IntegrationModule } from './integration/integration.module';
     PrismaModule,
     AuditModule,
     AuthModule,
+    UsersModule,
     PersonsModule,
     CasesModule,
     IntakeModule,

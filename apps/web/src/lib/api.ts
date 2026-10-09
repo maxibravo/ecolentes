@@ -348,6 +348,31 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ username, password }) },
     );
   },
+  listUsers() {
+    return request<ManagedUser[]>('/usuarios');
+  },
+  listOpticians() {
+    return request<OpticianOption[]>('/usuarios/opticas');
+  },
+  createUser(input: { username: string; fullName: string; role: Role; opticianId?: string }) {
+    return request<{ user: ManagedUser; password: string }>('/usuarios', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateUser(
+    id: string,
+    input: { fullName?: string; role?: Role; opticianId?: string | null; active?: boolean },
+  ) {
+    return request<ManagedUser>(`/usuarios/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  resetUserPassword(id: string) {
+    return request<{ password: string }>(`/usuarios/${id}/contrasena`, { method: 'POST' });
+  },
+
   searchPeople(q: string) {
     return request<Person[]>(`/personas?q=${encodeURIComponent(q)}`);
   },
@@ -539,6 +564,21 @@ export function formatDate(iso: string): string {
     year: 'numeric',
   });
 }
+
+export type ManagedUser = {
+  id: string;
+  username: string;
+  fullName: string;
+  role: Role;
+  active: boolean;
+  mustChangePassword: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  opticianId: string | null;
+  optician: { id: string; name: string } | null;
+};
+
+export type OpticianOption = { id: string; name: string };
 
 export const ROLE_LABELS: Record<Role, string> = {
   OPERATOR: 'Operador Ecolentes',

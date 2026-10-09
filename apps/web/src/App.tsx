@@ -7,10 +7,11 @@ import { CaseDetail } from './CaseDetail';
 import { NewCase } from './NewCase';
 import { Redes } from './Redes';
 import { Reports } from './Reports';
+import { Users } from './Users';
 import { PublicForm } from './PublicForm';
 import { ROLE_LABELS, writeToken, type Role, type SessionUser } from './lib/api';
 
-type Tab = 'bandeja' | 'personas' | 'nuevo' | 'redes' | 'indicadores';
+type Tab = 'bandeja' | 'personas' | 'nuevo' | 'redes' | 'indicadores' | 'usuarios';
 
 const TABS: { key: Tab; label: string; roles: Role[] | null }[] = [
   { key: 'bandeja', label: 'Expedientes', roles: null },
@@ -19,6 +20,7 @@ const TABS: { key: Tab; label: string; roles: Role[] | null }[] = [
   { key: 'redes', label: 'Redes', roles: ['SOCIAL_DESK', 'OPERATOR', 'ADMIN'] },
   // La óptica no entra a los reportes: ve sus propios expedientes y nada más.
   { key: 'indicadores', label: 'Indicadores', roles: ['OPERATOR', 'OPHTHALMOLOGIST', 'DIRECTOR', 'SOCIAL_DESK', 'ADMIN'] },
+  { key: 'usuarios', label: 'Usuarios', roles: ['ADMIN'] },
 ];
 
 /**
@@ -109,6 +111,8 @@ export function App() {
           <Redes onOpen={setOpenCaseId} />
         ) : tab === 'indicadores' ? (
           <Reports role={user.role} onOpen={setOpenCaseId} />
+        ) : tab === 'usuarios' ? (
+          <Users me={user} />
         ) : (
           <NewCase onCreated={setOpenCaseId} />
         )}
