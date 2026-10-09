@@ -112,6 +112,33 @@ El resumen tiene una **vista para compartir** que oculta los números de uno y d
 casos: en un barrio chico, un 1 alcanza para saber de quién se habla. Es la versión
 que puede salir hacia el sistema del municipio.
 
+## API para el sistema del municipio
+
+`/api/v1/integracion` es lo que consume el sistema general del municipio. Sólo
+devuelve totales, nunca personas, y la supresión de los números chicos está
+adentro del código y no en un parámetro: desde afuera no hay forma de pedir el
+dato sin ocultar. Son tres consultas y una de prueba:
+
+```
+GET /api/v1/integracion/estado              comprueba que la credencial anda
+GET /api/v1/integracion/resumen             el resumen, en su versión compartible
+GET /api/v1/integracion/por-mes?months=12   pedidos y entregas mes a mes
+GET /api/v1/integracion/etapas              en qué etapa está cada expediente
+```
+
+No entra con usuario y contraseña: cada sistema tiene su propia credencial, que
+viaja en el encabezado `X-API-Key`. Así se puede revocar sin tocar a ninguna
+persona, y en la auditoría se ve qué sistema consultó qué y cuándo.
+
+```bash
+pnpm api:credencial alta "Sistema municipal"   # muestra la clave una sola vez
+pnpm api:credencial lista
+pnpm api:credencial baja "Sistema municipal"
+```
+
+La clave no se guarda, sólo su hash: si se pierde, se da de baja y se emite
+otra. Se entrega por un canal seguro, no por chat.
+
 ## Versión de demostración
 
 `pnpm --filter @ecolentes/web demo` arma un único HTML que corre entero en el

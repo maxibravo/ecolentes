@@ -358,3 +358,23 @@ model CaseEvent {
   @@index([caseId, occurredAt])
   @@map("case_events")
 }
+
+/// Un sistema que consume la API, no una persona: hoy, el sistema general del
+/// municipio. Tiene su propia credencial para que se pueda revocar sin tocar a
+/// ningún usuario, y para que en la auditoría se vea quién consultó qué.
+model ServiceClient {
+  id         String    @id @default(uuid())
+  /// Nombre visible, el que aparece en la auditoría.
+  name       String    @unique
+  /// Primeros caracteres de la clave. Permite reconocerla en una lista sin
+  /// conocerla, igual que los últimos dígitos de una tarjeta.
+  keyPrefix  String    @unique
+  /// La clave nunca se guarda, sólo su hash. Si se pierde, se emite otra.
+  keyHash    String
+  active     Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@map("service_clients")
+}
