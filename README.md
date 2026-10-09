@@ -50,8 +50,8 @@ Para ver el sistema con datos y no con la base vacía, en lugar de `pnpm db:seed
 DEMO_SEED=si pnpm db:seed-demo
 ```
 
-Crea un usuario por rol (`operador`, `oftalmologo`, `optica`, `direccion`, `redes`,
-contraseña `ecolentes2026`) y expedientes de ejemplo en todas las etapas. Los datos
+Crea un usuario por rol (`operador`, `oftalmologo`, `optica`, `direccion`, `redes`
+y `admin`, contraseña `ecolentes2026`) y expedientes de ejemplo en todas las etapas. Los datos
 son inventados; los barrios son los de San Miguel de Tucumán.
 
 Si la máquina ya tiene otro PostgreSQL escuchando en el 5432, el nuestro no se

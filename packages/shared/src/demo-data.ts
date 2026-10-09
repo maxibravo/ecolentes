@@ -57,6 +57,8 @@ export const DEMO_USERS = [
   { username: 'optica', fullName: 'Óptica Centro · Mesa de pedidos', role: 'OPTICIAN' as const },
   { username: 'direccion', fullName: 'Mariela Ocampo', role: 'DIRECTOR' as const },
   { username: 'redes', fullName: 'Lucas Gramajo', role: 'SOCIAL_DESK' as const },
+  // Sin un administrador, la pantalla de Usuarios no se puede ni mirar.
+  { username: 'admin', fullName: 'Administración del sistema', role: 'ADMIN' as const },
 ];
 
 export const DEMO_PEOPLE: DemoPerson[] = [
