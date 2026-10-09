@@ -112,6 +112,22 @@ El resumen tiene una **vista para compartir** que oculta los números de uno y d
 casos: en un barrio chico, un 1 alcanza para saber de quién se habla. Es la versión
 que puede salir hacia el sistema del municipio.
 
+## Usuarios
+
+El administrador da de alta a los demás desde la pestaña **Usuarios**, eligiendo
+el perfil. El sistema genera la contraseña y la muestra una sola vez: quien la
+recibe la cambia al entrar, así nadie más la conoce, ni siquiera quien dio el
+alta. Si alguien la olvida, el administrador emite otra; nunca puede ver la
+anterior.
+
+Los usuarios **no se borran, se dan de baja**: borrarlos dejaría sin autor los
+expedientes y la auditoría que ya firmaron. Un administrador no puede darse de
+baja ni cambiarse el perfil a sí mismo, y el sistema no se queda sin ningún
+administrador activo, porque después no habría cómo volver a administrarlo.
+
+El perfil Óptica obliga a elegir a qué óptica pertenece: sin eso vería los
+expedientes de todas.
+
 ## API para el sistema del municipio
 
 `/api/v1/integracion` es lo que consume el sistema general del municipio. Sólo
