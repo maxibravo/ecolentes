@@ -15,6 +15,26 @@ import {
 import { Sex } from '@prisma/client';
 import { isValidDni } from '../common/dni';
 
+/**
+ * Una fecha de nacimiento que pueda ser de una persona viva. Un año mal tipeado
+ * (2206 por 2006) convierte a un adulto en menor o al revés, y de eso depende a
+ * quién se le entregan los anteojos.
+ */
+@ValidatorConstraint({ name: 'birthDate' })
+class BirthDateConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+    const hoy = new Date();
+    const hace120 = new Date(hoy.getFullYear() - 120, hoy.getMonth(), hoy.getDate());
+    return date <= hoy && date >= hace120;
+  }
+  defaultMessage(): string {
+    return 'Revisá la fecha de nacimiento: no puede ser futura ni de hace más de 120 años';
+  }
+}
+
 @ValidatorConstraint({ name: 'dni' })
 class DniConstraint implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
@@ -41,6 +61,7 @@ export class CreatePersonDto {
   /** Preferida. Si en territorio sólo tienen la edad, se manda ageAtIntake. */
   @IsOptional()
   @IsDateString({}, { message: 'La fecha de nacimiento no es válida' })
+  @Validate(BirthDateConstraint)
   birthDate?: string;
 
   @IsOptional()
@@ -100,6 +121,7 @@ export class UpdatePersonDto {
 
   @IsOptional()
   @IsDateString({}, { message: 'La fecha de nacimiento no es válida' })
+  @Validate(BirthDateConstraint)
   birthDate?: string;
 
   @IsOptional()

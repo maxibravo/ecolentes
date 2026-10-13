@@ -7,6 +7,7 @@ import {
   type IntakeChannel,
   type Person,
 } from './lib/api';
+import { BirthDate, birthDateFields, EMPTY_BIRTH_DATE } from './BirthDate';
 
 /**
  * Carga de un pedido nuevo. Pensada para usarse en el barrio desde el teléfono,
@@ -17,11 +18,22 @@ export function NewCase({ onCreated }: { onCreated: (caseId: string) => void }) 
   const [dni, setDni] = useState('');
   const [person, setPerson] = useState<Person | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', neighborhood: '' });
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    neighborhood: '',
+    representativeName: '',
+    ...EMPTY_BIRTH_DATE,
+  });
   const [channel, setChannel] = useState<IntakeChannel>('NEIGHBORHOOD_SURVEY');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Sin fecha ni edad no se puede saber si es menor, y de eso depende a quién se
+  // le entregan los anteojos. Se pide una de las dos antes de guardar la ficha.
+  const sinEdad = form.birthDate === '' && form.ageAtIntake === '';
 
   async function lookUp(event: FormEvent) {
     event.preventDefault();
@@ -50,8 +62,10 @@ export function NewCase({ onCreated }: { onCreated: (caseId: string) => void }) 
           dni,
           firstName: form.firstName,
           lastName: form.lastName,
+          ...birthDateFields(form),
           ...(form.phone ? { phone: form.phone } : {}),
           ...(form.neighborhood ? { neighborhood: form.neighborhood } : {}),
+          ...(form.representativeName ? { representativeName: form.representativeName } : {}),
         }));
       const created = await api.createCase({
         personId: target.id,
@@ -146,6 +160,19 @@ export function NewCase({ onCreated }: { onCreated: (caseId: string) => void }) 
                 onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
               />
             </div>
+            <BirthDate
+              value={form}
+              onChange={(value) => setForm((f) => ({ ...f, ...value }))}
+              hasRepresentative={form.representativeName !== ''}
+            />
+            <div className="full">
+              <label htmlFor="representante">Padre, madre o tutor, si es menor</label>
+              <input
+                id="representante"
+                value={form.representativeName}
+                onChange={(e) => setForm({ ...form, representativeName: e.target.value })}
+              />
+            </div>
           </div>
           {!form.phone && (
             <p className="muted">
@@ -154,7 +181,7 @@ export function NewCase({ onCreated }: { onCreated: (caseId: string) => void }) 
           )}
           <Channel value={channel} onChange={setChannel} />
           <Reason value={reason} onChange={setReason} />
-          <button type="submit" disabled={busy}>
+          <button type="submit" disabled={busy || sinEdad}>
             {busy ? 'Cargando…' : 'Cargar ficha y pedido'}
           </button>
         </form>
