@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch",
+    "dev": "node scripts/with-env.mjs prisma generate && nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "node scripts/with-env.mjs prisma generate",
     "prisma:migrate": "node scripts/with-env.mjs prisma migrate dev",
     "test": "jest",
     "prisma:seed": "node scripts/with-env.mjs ts-node prisma/seed.ts",

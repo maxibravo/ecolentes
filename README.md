@@ -39,6 +39,13 @@ pnpm db:seed        # crea el primer usuario administrador
 pnpm dev            # API en :3000 y web en :5173
 ```
 
+Después de traer cambios que tocan `apps/api/prisma/schema.prisma`, hay que
+correr `pnpm db:migrate`: crea las tablas nuevas en la base y regenera el cliente
+de Prisma. Sin eso la API no compila y los errores hablan de campos que "no
+existen" en tipos de Prisma (por ejemplo `'glasses' does not exist in type
+'CaseInclude'`), porque el cliente generado es el de antes. `pnpm dev` regenera
+el cliente al arrancar, así que ese caso sólo queda si falta la migración.
+
 El seed muestra la contraseña del administrador una sola vez. Al entrar, el sistema
 pide cambiarla.
 
