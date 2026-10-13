@@ -378,3 +378,34 @@ table.people button.link strong { text-decoration: underline; }
 }
 
 .intake-row .link { white-space: nowrap; }
+
+/*
+ * La lista de stock se imprime para ir con ella a la entrega y tachar a mano.
+ * Se deja sólo la lista: la barra de arriba, las pestañas y los botones no
+ * dicen nada en papel, y cada card suelta gastaría una hoja.
+ */
+/* Encabezado que sólo tiene sentido en la hoja impresa. */
+.only-print { display: none; }
+
+@media print {
+  /* En papel no sirven: los totales de arriba, la barra y los botones. */
+  .no-print, .topbar, .tabs, button { display: none; }
+  .only-print { display: block; }
+  /* El número de expediente sí va en la hoja, aunque en pantalla sea un botón. */
+  table.report button.link {
+    display: inline;
+    color: inherit;
+    text-decoration: none;
+    padding: 0;
+  }
+  main { padding: 0; }
+  .card { border: none; box-shadow: none; padding: 0 0 0.8rem; break-inside: auto; }
+  table.report { font-size: 0.85rem; }
+  table.report tr { break-inside: avoid; }
+  h3, h4 { break-after: avoid; }
+  /* Una casilla al lado de cada par para ir tachando contra la caja. */
+  table.stock tbody td:first-child::before {
+    content: '☐ ';
+    color: var(--muted);
+  }
+}

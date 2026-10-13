@@ -224,6 +224,8 @@ export type PendingRow = {
   stage: CaseStage;
   hold: CaseHold | null;
   pairs: number;
+  /** Los anteojos de este expediente que todavía no se entregaron. */
+  glasses: { code: string; kind: Glasses['kind'] }[];
   neighborhood: string | null;
   stageSince: string;
   overdue: boolean;
@@ -236,6 +238,12 @@ export type PendingReport = {
   totals: {
     inHousePairs: number;
     inHouseCases: number;
+    /** Controlados y listos para entregar. */
+    readyPairs: number;
+    readyCases: number;
+    /** Llegaron al municipio y falta controlarlos. */
+    toCheckPairs: number;
+    toCheckCases: number;
     atOpticianPairs: number;
     atOpticianCases: number;
     overdue: number;

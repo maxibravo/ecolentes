@@ -7,6 +7,7 @@ import {
   HOLD_LABELS,
   seesIdentityInReports,
   STAGE_LABELS,
+  type CaseStage,
   type DeliveriesReport,
   type PendingReport,
   type PersonReport,
@@ -30,7 +31,7 @@ export function Reports({ role, onOpen }: { role: Role; onOpen: (caseId: string)
 
   return (
     <div className="stack">
-      <div className="card stack-tight">
+      <div className="card stack-tight no-print">
         <h2>Indicadores y reportes</h2>
         <p className="muted">
           Cada número sale de los expedientes, así que se puede abrir y ver de dónde salió.
@@ -306,84 +307,200 @@ function DeliveriesView({ onOpen }: { onOpen: (caseId: string) => void }) {
   );
 }
 
+/**
+ * El stock por entregar, anteojo por anteojo.
+ *
+ * Se lista por el código del par y no por el expediente porque es lo que se va
+ * tachando contra la caja el día de la entrega, y porque un expediente de lejos
+ * y cerca son dos pares que pueden llegar en momentos distintos. Los
+ * controlados van aparte de los que acaban de llegar: en la caja están juntos,
+ * pero sólo los primeros se pueden entregar hoy.
+ */
 function PendingView({ onOpen }: { onOpen: (caseId: string) => void }) {
   const { data, error } = useReport<PendingReport>(() => api.pendingReport(), []);
 
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p className="muted">Cargando…</p>;
 
-  const rowsTable = (rows: PendingReport['byNeighborhood'][number]['rows']) => (
-    <table className="report">
-      <thead>
-        <tr>
-          <th>Expediente</th>
-          {data.nominal && <th>Persona</th>}
-          <th className="num">Pares</th>
-          <th>Etapa</th>
-          <th className="num">Días</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.caseId}>
-            <td>
-              <button type="button" className="link" onClick={() => onOpen(r.caseId)}>
-                {r.code}
-              </button>
-            </td>
-            {data.nominal && <td>{r.person?.name}</td>}
-            <td className="num">{r.pairs}</td>
-            <td>
-              {STAGE_LABELS[r.stage]}
-              {r.hold && <span className="chip hold">{HOLD_LABELS[r.hold]}</span>}
-            </td>
-            <td className={r.overdue ? 'num late' : 'num'}>
-              {Math.floor((Date.now() - new Date(r.stageSince).getTime()) / 86_400_000)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  const groups = (stages: CaseStage[]) =>
+    data.byNeighborhood
+      .map((g) => ({ ...g, rows: g.rows.filter((r) => stages.includes(r.stage)) }))
+      .filter((g) => g.rows.length > 0)
+      .map((g) => ({ ...g, pairs: g.rows.reduce((acc, r) => acc + r.pairs, 0) }));
+
+  const listos = groups(['READY_FOR_PICKUP']);
+  const porControlar = groups(['RECEIVED']);
 
   return (
     <div className="stack">
-      <div className="kpis">
+      <h2 className="only-print">Anteojos por entregar · {formatDate(new Date().toISOString())}</h2>
+
+      <div className="kpis no-print">
         <Kpi
-          value={data.totals.inHousePairs}
-          label="Pares en el municipio"
-          hint={`${data.totals.inHouseCases} expedientes sin entregar`}
+          value={data.totals.readyPairs}
+          label="Listos para entregar"
+          hint={`${data.totals.readyCases} expedientes controlados`}
+        />
+        <Kpi
+          value={data.totals.toCheckPairs}
+          label="Falta controlarlos"
+          hint={`${data.totals.toCheckCases} expedientes recién llegados`}
         />
         <Kpi
           value={data.totals.atOpticianPairs}
           label="Pares en la óptica"
           hint={`${data.totals.atOpticianCases} todavía en producción`}
         />
-        <Kpi value={data.totals.overdue} label="Fuera de plazo" hint="Entre los dos grupos" />
+        <Kpi value={data.totals.overdue} label="Fuera de plazo" hint="Entre los tres grupos" />
       </div>
 
-      {data.byNeighborhood.length === 0 && (
-        <p className="muted">No hay anteojos esperando entrega en el municipio.</p>
-      )}
-      {data.byNeighborhood.map((g) => (
-        <div className="card stack-tight" key={g.neighborhood}>
-          <h3>
-            {g.neighborhood} <span className="muted">· {g.pairs} pares</span>
-          </h3>
-          {rowsTable(g.rows)}
+      <div className="card stack-tight no-print">
+        <div className="row between">
+          <p className="muted">
+            {data.totals.inHousePairs === 0
+              ? 'No hay anteojos esperando entrega en el municipio.'
+              : `Hay ${pares(data.totals.inHousePairs)} en el municipio, cada uno con su código y la persona a la que le corresponde.`}
+          </p>
+          {data.totals.inHousePairs > 0 && (
+            <button type="button" className="secondary" onClick={() => window.print()}>
+              Imprimir la lista
+            </button>
+          )}
         </div>
-      ))}
+      </div>
+
+      <StockSection
+        title="Listos para entregar"
+        hint="Ya se controlaron contra la receta: se pueden entregar hoy."
+        groups={listos}
+        nominal={data.nominal}
+        onOpen={onOpen}
+      />
+      <StockSection
+        title="Llegaron, falta controlarlos"
+        hint="Están en el municipio pero todavía no se controlaron contra la receta."
+        groups={porControlar}
+        nominal={data.nominal}
+        onOpen={onOpen}
+      />
 
       {data.atOptician.length > 0 && (
-        <div className="card stack-tight">
+        <div className="card stack-tight no-print">
           <h3>Todavía en la óptica</h3>
-          {rowsTable(data.atOptician)}
+          <p className="muted">
+            {pares(data.totals.atOpticianPairs)} en producción: no están en el municipio, así que
+            no entran en la lista de entrega.
+          </p>
+          <StockTable rows={data.atOptician} nominal={data.nominal} onOpen={onOpen} />
         </div>
       )}
-      <p className="muted">
-        Con esto se arma la próxima jornada de entrega: qué hay que entregar y en qué barrio.
-      </p>
     </div>
+  );
+}
+
+/** "1 par" y "2 pares", que en una lista de la caja se lee todo el tiempo. */
+function pares(n: number) {
+  return `${n} ${n === 1 ? 'par' : 'pares'}`;
+}
+
+function StockSection({
+  title,
+  hint,
+  groups,
+  nominal,
+  onOpen,
+}: {
+  title: string;
+  hint: string;
+  groups: PendingReport['byNeighborhood'];
+  nominal: boolean;
+  onOpen: (caseId: string) => void;
+}) {
+  const pairs = groups.reduce((acc, g) => acc + g.pairs, 0);
+
+  return (
+    <div className="card stack-tight">
+      <h3>
+        {title} <span className="muted">· {pares(pairs)}</span>
+      </h3>
+      <p className="muted">{hint}</p>
+      {groups.length === 0 ? (
+        <p className="muted">Ninguno por ahora.</p>
+      ) : (
+        groups.map((g) => (
+          <div className="stack-tight" key={g.neighborhood}>
+            <h4>
+              {g.neighborhood} <span className="muted">· {pares(g.pairs)}</span>
+            </h4>
+            <StockTable rows={g.rows} nominal={nominal} onOpen={onOpen} />
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+/** Una fila por par de anteojos, no por expediente. */
+function StockTable({
+  rows,
+  nominal,
+  onOpen,
+}: {
+  rows: PendingReport['byNeighborhood'][number]['rows'];
+  nominal: boolean;
+  onOpen: (caseId: string) => void;
+}) {
+  return (
+    <table className="report stock">
+      <thead>
+        <tr>
+          <th>Anteojo</th>
+          {nominal && <th>Le corresponde a</th>}
+          <th>Expediente</th>
+          <th>Etapa</th>
+          <th className="num">Días</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.flatMap((r) =>
+          // Un expediente viejo puede no tener los anteojos numerados: se
+          // muestra igual, con los pares que declara, para que no desaparezca
+          // de la lista de la caja.
+          (r.glasses.length > 0
+            ? r.glasses.map((pair) => ({ key: pair.code, code: pair.code, kind: pair.kind }))
+            : [{ key: r.caseId, code: null, kind: null }]
+          ).map((pair) => (
+            <tr key={pair.key}>
+              <td>
+                {pair.code ? (
+                  <>
+                    <strong>{pair.code}</strong>{' '}
+                    <span className="muted">{pair.kind === 'CERCA' ? 'cerca' : 'lejos'}</span>
+                  </>
+                ) : (
+                  <span className="muted">
+                    Sin código · {pares(r.pairs)}
+                  </span>
+                )}
+              </td>
+              {nominal && <td>{r.person?.name}</td>}
+              <td>
+                <button type="button" className="link" onClick={() => onOpen(r.caseId)}>
+                  {r.code}
+                </button>
+              </td>
+              <td>
+                {STAGE_LABELS[r.stage]}
+                {r.hold && <span className="chip hold">{HOLD_LABELS[r.hold]}</span>}
+              </td>
+              <td className={r.overdue ? 'num late' : 'num'}>
+                {Math.floor((Date.now() - new Date(r.stageSince).getTime()) / 86_400_000)}
+              </td>
+            </tr>
+          )),
+        )}
+      </tbody>
+    </table>
   );
 }
 
