@@ -151,12 +151,10 @@ describe('PersonsService.search', () => {
   function buildSearch(person: Record<string, unknown>, cases: unknown[]) {
     const audit = { record: jest.fn(), historyFor: jest.fn() };
     const findMany = jest.fn().mockResolvedValue(cases);
-    const prisma = {
-      person: { findMany: jest.fn().mockResolvedValue([{ id: 'p1', dni: '47220185', ...person }]) },
-      case: { findMany },
-    };
+    const personFindMany = jest.fn().mockResolvedValue([{ id: 'p1', dni: '47220185', ...person }]);
+    const prisma = { person: { findMany: personFindMany }, case: { findMany } };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return { service: new PersonsService(prisma as any, audit as any), findMany };
+    return { service: new PersonsService(prisma as any, audit as any), findMany, personFindMany };
   }
 
   const caso = (over: Record<string, unknown> = {}) => ({
@@ -233,5 +231,31 @@ describe('PersonsService.search', () => {
 
     expect(row!.summary.isMinor).toBeNull();
     expect(row!.summary.age).toBeNull();
+  });
+
+  it('ordena por el nombre sin acentos, para que Ávila no quede al final', async () => {
+    const { service, personFindMany } = buildSearch({ birthDate: null, ageAtIntake: null }, []);
+
+    await service.search({});
+
+    expect(personFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { searchName: 'asc' } }),
+    );
+  });
+
+  it('trae la página que se le pide', async () => {
+    const { service, personFindMany } = buildSearch({ birthDate: null, ageAtIntake: null }, []);
+
+    await service.search({ skip: 50, take: 26 });
+
+    expect(personFindMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 50, take: 26 }));
+  });
+
+  it('sin página pedida arranca de la primera', async () => {
+    const { service, personFindMany } = buildSearch({ birthDate: null, ageAtIntake: null }, []);
+
+    await service.search({});
+
+    expect(personFindMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0 }));
   });
 });

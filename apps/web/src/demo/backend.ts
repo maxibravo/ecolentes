@@ -301,13 +301,18 @@ export function installDemoBackend(): void {
       const d = digits(q);
       const text = accents(q);
       const found = !q.trim()
-        ? state.people.slice(0, 20)
+        ? [...state.people]
         : state.people.filter(
             (p) =>
               (d.length >= 3 && p.dni.includes(d)) ||
               accents(`${p.lastName} ${p.firstName}`).includes(text),
           );
-      return found.map((p) => ({ ...p, summary: summarize(p) }));
+      found.sort((a, b) =>
+        `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'es'),
+      );
+      const skip = Number(params.get('skip') ?? 0) || 0;
+      const take = Number(params.get('take') ?? 20) || 20;
+      return found.slice(skip, skip + take).map((p) => ({ ...p, summary: summarize(p) }));
     }
     if (route.startsWith('/personas/por-dni/')) {
       const found = state.people.find((p) => p.dni === digits(route.split('/').pop() ?? ''));
