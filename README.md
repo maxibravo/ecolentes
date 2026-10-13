@@ -142,6 +142,34 @@ pero hay que escribir por qué y eso queda escrito también. Una ficha sin fecha
 nacimiento ni edad no frena la entrega, pero tampoco afirma que la persona sea
 mayor: la pantalla lo dice.
 
+## Fotos del DNI y de la receta
+
+En **Pedido nuevo** se pueden sacar tres fotos, todas optativas: el DNI de
+frente y de dorso, junto al número, y la receta que la persona ya trajo del
+oftalmólogo, junto al motivo. Son optativas de verdad: el pedido se carga igual
+sin ninguna, porque en el barrio muchas veces no hay señal para subirlas, y si
+una falla al subir el pedido ya quedó cargado y la foto se saca después desde el
+expediente. La pantalla achica la foto antes de mandarla (1600 píxeles de lado
+mayor, JPG), así una foto de teléfono de cuatro megas sube como unos cientos de
+kilobytes.
+
+Las fotos del DNI son de la persona y aparecen en todos sus expedientes; la de
+la receta es de un expediente, porque la graduación de hace dos años no sirve
+hoy. Sacar una foto nueva reemplaza a la anterior del mismo tipo.
+
+Quién ve qué sale de `packages/shared/src/attachments.ts` y lo aplica la API, no
+la pantalla: la foto del DNI la ven quienes atienden a la persona (operador,
+atención de redes, administrador); la receta la ven además el oftalmólogo y la
+óptica que fabrica ese expediente. Dirección no ve ninguna de las dos, porque
+aprueba sin la identidad y una receta suele tener escrito el nombre. Cada vez
+que alguien abre una imagen queda registrado en la auditoría.
+
+Los archivos no se guardan en la base sino en `UPLOADS_DIR` (en Docker, un
+volumen propio) y no se sirven por URL: se piden a la API, que es la que sabe
+quién puede verlas. **Esa carpeta se respalda junto con la base**: sin ella, las
+fichas apuntan a archivos que no están. El tipo de archivo no se cree por lo que
+diga el navegador, se mira adentro: sólo entran JPG, PNG y WEBP, hasta 5 MB.
+
 ## Reportes
 
 `/api/v1/reportes` tiene el resumen, el padrón de entregas, los pendientes de

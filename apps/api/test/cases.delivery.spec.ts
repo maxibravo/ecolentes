@@ -27,7 +27,9 @@ function build(person: Record<string, unknown>) {
     $transaction: (fn: (tx: unknown) => unknown) => fn(prisma),
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new CasesService(prisma as any, audit as any);
+  const attachments = { listFor: jest.fn().mockResolvedValue([]) };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = new CasesService(prisma as any, audit as any, attachments as any);
   return { service, upsert, updateMany };
 }
 

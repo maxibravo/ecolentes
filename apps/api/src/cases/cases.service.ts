@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeDni } from '../common/dni';
 import { AuditService } from '../audit/audit.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import type { AuthenticatedUser } from '../common/current-user';
 import { searchText } from '../common/search-text';
 import type {
@@ -38,6 +39,7 @@ export class CasesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly attachments: AttachmentsService,
   ) {}
 
   async list(params: ListCasesDto, viewer: AuthenticatedUser) {
@@ -101,6 +103,14 @@ export class CasesService {
     if (!found) throw new NotFoundException('No existe ese expediente');
     this.assertOwnOptician(found.opticianId, viewer);
 
+    // Las fotos del DNI son de la persona y las sigue por todos sus
+    // expedientes; la de la receta es de este. Van juntas porque quien abre el
+    // expediente las mira juntas.
+    const attachments = await this.attachments.listFor(
+      { OR: [{ caseId: found.id }, { personId: found.personId }] },
+      viewer,
+    );
+
     await this.audit.record({
       action: AuditAction.VIEW,
       entity: 'Case',
@@ -109,7 +119,7 @@ export class CasesService {
       username: viewer.username,
     });
 
-    return { ...found, overdue: isOverdue(found.stage, found.stageSince) };
+    return { ...found, attachments, overdue: isOverdue(found.stage, found.stageSince) };
   }
 
   async create(dto: CreateCaseDto, author: AuthenticatedUser): Promise<Case> {

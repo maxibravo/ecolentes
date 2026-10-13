@@ -49,6 +49,7 @@ model User {
   decidedQuotes          Quote[]        @relation("QuoteDecidedBy")
   handedDeliveries       Delivery[]     @relation("DeliveryHandedBy")
   caseEvents             CaseEvent[]    @relation("CaseEventUser")
+  uploadedAttachments    Attachment[]   @relation("AttachmentUploadedBy")
 
   @@map("users")
 }
@@ -94,7 +95,8 @@ model Person {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cases Case[]
+  cases       Case[]
+  attachments Attachment[]
 
   @@index([lastName, firstName])
   @@index([searchName])
@@ -248,6 +250,7 @@ model Case {
   delivery     Delivery?
   events       CaseEvent[]
   glasses      Glasses[]
+  attachments  Attachment[]
 
   @@index([stage])
   @@index([personId])
@@ -408,4 +411,44 @@ model ServiceClient {
   revokedAt  DateTime?
 
   @@map("service_clients")
+}
+
+/// Qué es la imagen. De esto depende quién puede verla.
+enum AttachmentKind {
+  DNI_FRONT
+  DNI_BACK
+  PRESCRIPTION
+}
+
+/// Una foto cargada desde el teléfono: el DNI de la persona o la receta que
+/// trajo del oftalmólogo. Siempre opcional: en el barrio muchas veces no hay
+/// señal para subirla, y el pedido no puede depender de eso.
+///
+/// El archivo no se guarda en la base sino en disco, y el nombre con el que se
+/// guarda lo pone el sistema: el que trae el teléfono no se usa para nada,
+/// porque es texto que escribió otro.
+model Attachment {
+  id   String         @id @default(uuid())
+  kind AttachmentKind
+
+  /// Las fotos del DNI son de la persona, y le sirven a cualquier expediente suyo.
+  personId String?
+  person   Person? @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// La receta es de un expediente: la graduación de hace dos años no sirve hoy.
+  caseId   String?
+  case     Case?   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  mimeType String
+  bytes    Int
+  /// Nombre del archivo en disco. Lo genera el sistema.
+  storageKey String @unique
+
+  uploadedById String?
+  uploadedBy   User?   @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([personId, kind])
+  @@index([caseId, kind])
+  @@map("attachments")
 }

@@ -7,3 +7,4 @@ export * from './reports.js';
 export * from './demo-data.js';
 export * from './prescription-text.js';
 export * from './people.js';
+export * from './attachments.js';

@@ -1,15 +1,18 @@
 import {
   ageOf,
+  attachmentBelongsToPerson,
   canMove,
+  canUploadAttachment,
   glassesKindsFromText,
   isMinor,
   isOverdue,
   pairsFromText,
   parsePrescription,
+  seesAttachment,
   STAGE_RULES,
 } from '@ecolentes/shared';
 import { buildState, type DemoCaseRecord, type DemoState } from './state';
-import type { CaseStage, Role } from '../lib/api';
+import { ApiError, type AttachmentKind, type CaseStage, type Role } from '../lib/api';
 
 /**
  * Una versión de demostración que corre entera en el navegador: no hay servidor
@@ -28,12 +31,14 @@ const DEMO_PASSWORD = 'ecolentes';
 
 type Handler = <T>(path: string, init: RequestInit) => Promise<T>;
 
-class DemoError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
+/**
+ * Un error de la demostración. Hereda de ApiError porque las pantallas miran el
+ * código: sin eso, en la demostración un DNI que no existe se veía como un
+ * error en vez de abrir el formulario de ficha nueva.
+ */
+class DemoError extends ApiError {
+  constructor(message: string, status: number) {
+    super(message, status, null);
   }
 }
 
@@ -57,6 +62,9 @@ function digits(text: string): string {
 export function installDemoBackend(): void {
   const state = buildState();
   let session = state.users[0]!;
+  // Las imágenes de la demostración, en memoria: se pierden al recargar.
+  const images = new Map<string, string>();
+  let attachmentCount = 0;
 
   const bodyOf = (init: RequestInit): Record<string, unknown> =>
     init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
@@ -157,6 +165,7 @@ export function installDemoBackend(): void {
       prescription: null,
       quotes: [],
       glasses: [],
+      attachments: [],
       delivery: null,
       events: [],
       createdAt: new Date().toISOString(),
@@ -393,6 +402,50 @@ export function installDemoBackend(): void {
       if (params.get('overdue') === 'true') list = list.filter((c) => c.overdue);
       return [...list].sort((a, b) => a.stageSince.localeCompare(b.stageSince));
     }
+    // --- Fotos del DNI y de la receta
+    if (route === '/adjuntos' && method === 'POST') {
+      const kind = body.kind as AttachmentKind;
+      if (!canUploadAttachment(session.role, kind)) {
+        throw new DemoError('Tu rol no puede cargar esta imagen', 403);
+      }
+      const dataUrl = str(body.dataUrl);
+      // En la demostración las fotos viven en memoria y se pierden al recargar:
+      // no hay servidor donde guardarlas.
+      const saved = {
+        id: `adj-${++attachmentCount}`,
+        kind,
+        mimeType: dataUrl.slice(5, dataUrl.indexOf(';')),
+        bytes: Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75),
+        createdAt: new Date().toISOString(),
+        personId: str(body.personId) || null,
+        caseId: str(body.caseId) || null,
+      };
+      images.set(saved.id, dataUrl);
+
+      // Una foto nueva reemplaza a la anterior del mismo tipo, igual que en la API.
+      const targets = attachmentBelongsToPerson(kind)
+        ? state.cases.filter((c) => c.person.id === saved.personId)
+        : state.cases.filter((c) => c.id === saved.caseId);
+      for (const c of state.cases) {
+        c.attachments = c.attachments.filter(
+          (a) => !(a.kind === kind && (a.personId === saved.personId || a.caseId === saved.caseId)),
+        );
+      }
+      for (const c of targets) c.attachments = [...c.attachments, saved];
+      return saved;
+    }
+    const attachmentMatch = /^\/adjuntos\/([^/]+)$/.exec(route);
+    if (attachmentMatch && method === 'GET') {
+      const id = attachmentMatch[1]!;
+      const dataUrl = images.get(id);
+      const saved = state.cases.flatMap((c) => c.attachments).find((a) => a.id === id);
+      if (!dataUrl || !saved) throw new DemoError('No existe esa imagen', 404);
+      if (!seesAttachment(session.role, saved.kind)) {
+        throw new DemoError('Tu rol no puede ver esta imagen', 403);
+      }
+      return { ...saved, dataUrl };
+    }
+
     if (route === '/expedientes' && method === 'POST') {
       return withDelay(
         newCase({

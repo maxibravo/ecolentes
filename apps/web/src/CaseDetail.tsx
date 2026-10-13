@@ -11,6 +11,7 @@ import {
   type Role,
 } from './lib/api';
 import { CaseActions } from './CaseActions';
+import { CasePhotos } from './CasePhotos';
 
 export function CaseDetail({
   id,
@@ -144,6 +145,8 @@ export function CaseDetail({
           </p>
         </article>
       )}
+
+      <CasePhotos detail={detail} role={role} onChange={load} />
 
       {detail.quotes.length > 0 && (
         <article className="card">
