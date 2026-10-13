@@ -149,6 +149,15 @@ entrega y el detalle por persona. Quién ve nombres y quién no se decide en la 
 no en la pantalla: Dirección y la óptica reciben los totales sin identidad, y el
 reporte por persona directamente se les niega.
 
+**Pendientes de entrega** es el stock: qué anteojos hay en el municipio sin
+entregar, cuáles ya se controlaron contra la receta y cuáles acaban de llegar, y a
+quién le corresponde cada uno. Se lista un renglón por par y no por expediente,
+con el código del anteojo, porque es lo que se va tachando contra la caja: un
+expediente de lejos y cerca son dos pares que pueden llegar en momentos distintos.
+Sigue agrupado por barrio, que es como se arma la jornada, y se puede imprimir para
+ir con la lista a la entrega. Los pares que todavía están en la óptica se muestran
+aparte: no están en el municipio, así que no entran en la lista.
+
 El resumen tiene una **vista para compartir** que oculta los números de uno y dos
 casos: en un barrio chico, un 1 alcanza para saber de quién se habla. Es la versión
 que puede salir hacia el sistema del municipio.

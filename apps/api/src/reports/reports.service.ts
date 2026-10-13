@@ -214,8 +214,9 @@ export class ReportsService {
   }
 
   /**
-   * Lo que falta entregar: primero lo que ya está en el municipio, después lo
-   * que sigue en la óptica. Es con lo que se arma la próxima jornada.
+   * El stock por entregar: qué anteojos hay, cuáles están listos y a quién le
+   * corresponde cada uno. Se lista por el código del anteojo y no por el
+   * expediente, porque es lo que se puede ir tachando contra la caja.
    */
   async pending(viewer: AuthenticatedUser) {
     const nominal = seesIdentityInReports(viewer.role);
@@ -226,6 +227,11 @@ export class ReportsService {
       include: {
         person: { select: { firstName: true, lastName: true, dni: true, neighborhood: true } },
         optician: { select: { name: true } },
+        glasses: {
+          where: { deliveredAt: null },
+          select: { code: true, kind: true },
+          orderBy: { code: 'asc' },
+        },
       },
     });
 
@@ -234,7 +240,8 @@ export class ReportsService {
       code: c.code,
       stage: c.stage,
       hold: c.hold,
-      pairs: c.pairs,
+      pairs: pairsOf(c),
+      glasses: c.glasses,
       neighborhood: c.person.neighborhood,
       stageSince: c.stageSince,
       overdue: isOverdue(c.stage, c.stageSince),
@@ -246,6 +253,10 @@ export class ReportsService {
 
     const inHouse = cases.filter((c) => IN_HOUSE_STAGES.includes(c.stage));
     const atOptician = cases.filter((c) => c.stage === CaseStage.PRODUCTION);
+    // Los que ya se controlaron y se pueden entregar hoy, aparte de los que
+    // acaban de llegar: en la caja están juntos, pero no se entregan igual.
+    const ready = inHouse.filter((c) => c.stage === CaseStage.READY_FOR_PICKUP);
+    const toCheck = inHouse.filter((c) => c.stage === CaseStage.RECEIVED);
 
     await this.audit.record({
       action: AuditAction.VIEW,
@@ -258,9 +269,13 @@ export class ReportsService {
     return {
       nominal,
       totals: {
-        inHousePairs: sumPairs(inHouse),
+        inHousePairs: stockPairs(inHouse),
         inHouseCases: inHouse.length,
-        atOpticianPairs: sumPairs(atOptician),
+        readyPairs: stockPairs(ready),
+        readyCases: ready.length,
+        toCheckPairs: stockPairs(toCheck),
+        toCheckCases: toCheck.length,
+        atOpticianPairs: stockPairs(atOptician),
         atOpticianCases: atOptician.length,
         overdue: cases.filter((c) => isOverdue(c.stage, c.stageSince)).length,
       },
@@ -268,7 +283,7 @@ export class ReportsService {
       byNeighborhood: groupBy(inHouse, (c) => c.person.neighborhood ?? 'Sin barrio cargado')
         .map(([neighborhood, list]) => ({
           neighborhood,
-          pairs: sumPairs(list),
+          pairs: stockPairs(list),
           rows: list.map(row),
         }))
         .sort((a, b) => b.pairs - a.pairs),
@@ -356,6 +371,20 @@ export class ReportsService {
 
 function sumPairs(list: { pairs: number }[]): number {
   return list.reduce((acc, c) => acc + c.pairs, 0);
+}
+
+/**
+ * Cuántos pares tiene el expediente sin entregar. Se cuentan los anteojos
+ * numerados, que son los que están en la caja; la columna `pairs` queda como
+ * respaldo para un expediente viejo al que nunca se le emitieron anteojos.
+ */
+function pairsOf(c: { glasses: unknown[]; pairs: number }): number {
+  return c.glasses.length || c.pairs;
+}
+
+/** Los pares de un grupo de expedientes, contados por anteojo. */
+function stockPairs(list: { glasses: unknown[]; pairs: number }[]): number {
+  return list.reduce((acc, c) => acc + pairsOf(c), 0);
 }
 
 function count(list: { pairs: number; stage: CaseStage; stageSince: Date }[]): Counted {

@@ -256,6 +256,18 @@ export function installDemoBackend(): void {
 
   const sumPairs = (list: { pairs: number }[]) => list.reduce((a, c) => a + c.pairs, 0);
 
+  /** Los anteojos de un expediente que todavía no se entregaron. */
+  const pendingGlasses = (c: DemoCaseRecord) => c.glasses.filter((pair) => !pair.deliveredAt);
+
+  /**
+   * Cuántos pares sin entregar tiene el expediente. Se cuentan los anteojos
+   * numerados; la columna `pairs` queda de respaldo para un expediente al que
+   * nunca se le emitieron.
+   */
+  const pairsOf = (c: DemoCaseRecord) => pendingGlasses(c).length || c.pairs;
+
+  const stockPairs = (list: DemoCaseRecord[]) => list.reduce((a, c) => a + pairsOf(c), 0);
+
   function groupBy<T>(list: T[], key: (item: T) => string): [string, T[]][] {
     const map = new Map<string, T[]>();
     for (const item of list) {
@@ -819,7 +831,8 @@ export function installDemoBackend(): void {
           code: c.code,
           stage: c.stage,
           hold: c.hold,
-          pairs: c.pairs,
+          pairs: pairsOf(c),
+          glasses: pendingGlasses(c).map((pair) => ({ code: pair.code, kind: pair.kind })),
           neighborhood: c.person.neighborhood,
           stageSince: c.stageSince,
           overdue: c.overdue,
@@ -830,19 +843,25 @@ export function installDemoBackend(): void {
         });
         const inHouse = all.filter((c) => IN_HOUSE.includes(c.stage));
         const atOptician = all.filter((c) => c.stage === 'PRODUCTION');
+        const ready = inHouse.filter((c) => c.stage === 'READY_FOR_PICKUP');
+        const toCheck = inHouse.filter((c) => c.stage === 'RECEIVED');
         return {
           nominal,
           totals: {
-            inHousePairs: sumPairs(inHouse),
+            inHousePairs: stockPairs(inHouse),
             inHouseCases: inHouse.length,
-            atOpticianPairs: sumPairs(atOptician),
+            readyPairs: stockPairs(ready),
+            readyCases: ready.length,
+            toCheckPairs: stockPairs(toCheck),
+            toCheckCases: toCheck.length,
+            atOpticianPairs: stockPairs(atOptician),
             atOpticianCases: atOptician.length,
             overdue: [...inHouse, ...atOptician].filter((c) => c.overdue).length,
           },
           byNeighborhood: groupBy(inHouse, (c) => c.person.neighborhood ?? 'Sin barrio cargado')
             .map(([neighborhood, list]) => ({
               neighborhood,
-              pairs: sumPairs(list),
+              pairs: stockPairs(list),
               rows: list.map(row),
             }))
             .sort((a, b) => b.pairs - a.pairs),
