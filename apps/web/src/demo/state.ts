@@ -191,6 +191,8 @@ export function buildState(): DemoState {
           }
         : null,
       events: events.reverse(),
+      // En la demostración nadie subió fotos: se cargan desde la pantalla.
+      attachments: [],
       createdAt: daysAgoIso(demo.daysInStage + 20),
     };
   });

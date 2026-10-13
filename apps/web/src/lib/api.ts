@@ -146,6 +146,25 @@ export type CaseSummary = {
   glasses: Glasses[];
 };
 
+export type AttachmentKind = 'DNI_FRONT' | 'DNI_BACK' | 'PRESCRIPTION';
+
+export const ATTACHMENT_LABELS: Record<AttachmentKind, string> = {
+  DNI_FRONT: 'DNI, frente',
+  DNI_BACK: 'DNI, dorso',
+  PRESCRIPTION: 'Receta del oftalmólogo',
+};
+
+/** Una foto cargada, sin la foto: la imagen se pide aparte, de a una. */
+export type Attachment = {
+  id: string;
+  kind: AttachmentKind;
+  mimeType: string;
+  bytes: number;
+  createdAt: string;
+  personId: string | null;
+  caseId: string | null;
+};
+
 export type CaseDetail = CaseSummary & {
   reason: string | null;
   prescription: Prescription | null;
@@ -158,6 +177,7 @@ export type CaseDetail = CaseSummary & {
     note: string | null;
   } | null;
   events: CaseEvent[];
+  attachments: Attachment[];
 };
 
 export type Optician = { id: string; name: string };
@@ -449,6 +469,20 @@ export const api = {
   case(id: string) {
     return request<CaseDetail>(`/expedientes/${id}`);
   },
+  /** Guarda una foto. Reemplaza la anterior del mismo tipo, si había. */
+  uploadAttachment(input: {
+    kind: AttachmentKind;
+    personId?: string;
+    caseId?: string;
+    dataUrl: string;
+  }) {
+    return request<Attachment>('/adjuntos', { method: 'POST', body: JSON.stringify(input) });
+  },
+  /** La imagen en sí. Cada vez que se pide queda registrado quién la miró. */
+  attachment(id: string) {
+    return request<Attachment & { dataUrl: string }>(`/adjuntos/${id}`);
+  },
+
   createCase(input: { personId: string; channel: IntakeChannel; reason?: string }) {
     return request<CaseSummary>('/expedientes', { method: 'POST', body: JSON.stringify(input) });
   },

@@ -414,3 +414,33 @@ table.people button.link strong { text-decoration: underline; }
     color: var(--muted);
   }
 }
+
+/* Fotos del DNI y de la receta: optativas, y siempre chicas en pantalla. */
+.photo-field { margin: 0 0 0.75rem; }
+.photo-field input[type='file'] { width: 100%; margin: 0.35rem 0 0; font-size: 0.9rem; }
+.photo-field input[type='file'].hidden { display: none; }
+.photo-preview {
+  max-width: 10rem;
+  max-height: 7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+/* Una etiqueta que abre el selector de archivos, con cara de botón. */
+label.button.secondary {
+  display: inline-block;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+figure.photo { margin: 0 0 0.75rem; }
+figure.photo img {
+  max-width: 100%;
+  max-height: 12rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+figure.photo figcaption { font-size: 0.85rem; margin-top: 0.25rem; }

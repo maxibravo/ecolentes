@@ -10,6 +10,7 @@ import { RolesGuard } from './auth/roles.guard';
 import { UsersModule } from './users/users.module';
 import { PersonsModule } from './persons/persons.module';
 import { CasesModule } from './cases/cases.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 import { IntakeModule } from './intake/intake.module';
 import { ReportsModule } from './reports/reports.module';
 import { IntegrationModule } from './integration/integration.module';
@@ -30,6 +31,7 @@ import { IntegrationModule } from './integration/integration.module';
     UsersModule,
     PersonsModule,
     CasesModule,
+    AttachmentsModule,
     IntakeModule,
     ReportsModule,
     IntegrationModule,

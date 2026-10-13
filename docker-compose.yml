@@ -32,8 +32,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en el .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       API_PORT: 3000
+      UPLOADS_DIR: /var/lib/ecolentes/uploads
     ports:
       - "${API_PORT:-3000}:3000"
+    volumes:
+      # Las fotos del DNI y de las recetas tienen que sobrevivir a que se
+      # reconstruya la imagen, igual que la base.
+      - ecolentes-uploads:/var/lib/ecolentes/uploads
 
   web:
     build:
@@ -48,3 +53,4 @@ services:
 
 volumes:
   ecolentes-db-data:
+  ecolentes-uploads:
