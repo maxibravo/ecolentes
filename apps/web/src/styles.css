@@ -116,6 +116,11 @@ button.link {
 .grid .full { grid-column: 1 / -1; }
 
 .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* El botón que manda el formulario no va pegado al último campo: con el dedo
+   es fácil tocarlo cuando se quería tocar el campo. */
+form.card > button[type='submit'] { margin-top: 1rem; }
+/* Lo mismo entre un campo suelto y la etiqueta del que sigue. */
+form.card > input, form.card > select { margin-bottom: 0.75rem; }
 
 .muted { color: var(--muted); font-size: 0.9rem; }
 .error { color: var(--danger); }
