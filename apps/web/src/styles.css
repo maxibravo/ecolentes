@@ -335,6 +335,31 @@ table.report th { color: var(--muted); font-size: 0.82rem; font-weight: 600; }
 table.report .num { text-align: right; font-variant-numeric: tabular-nums; }
 table.report .late { color: var(--danger); font-weight: 600; }
 table.report .chip { margin-left: 0.35rem; }
+/* Los expedientes de una ficha, con los códigos de sus anteojos. */
+.cases-of-person { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.cases-of-person li { display: flex; flex-direction: column; gap: 0.15rem; }
+
+/* Los anteojos del expediente, uno por línea con su código. */
+.glasses { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.glasses li { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+/* Un dato del expediente que cambia lo que hay que hacer, como "es menor". */
+.aviso {
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  padding: 0.6rem 0.8rem;
+  margin: 0 0 0.3rem;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.92rem;
+}
+
+/* La tabla de personas se recorre tocando la fila, como la bandeja. */
+table.report tr.clickable { cursor: pointer; }
+table.report tr.clickable:hover { background: var(--bg); }
+table.people button.link { text-align: left; text-decoration: none; }
+table.people button.link strong { text-decoration: underline; }
+.search input { width: 100%; }
+
 /* Las tablas de reporte pueden tener más columnas que el ancho del teléfono. */
 .card > table.report { display: table; }
 

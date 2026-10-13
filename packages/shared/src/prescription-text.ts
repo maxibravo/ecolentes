@@ -89,7 +89,23 @@ export function parsePrescription(rawText: string): ParsedPrescription {
   return result;
 }
 
+/** Para qué es cada par. Es lo que distingue un anteojo del otro al entregarlos. */
+export type GlassesKind = 'LEJOS' | 'CERCA';
+
+/**
+ * Qué anteojos salen de una receta, en orden. Una receta de lejos y cerca son
+ * dos anteojos distintos, que se fabrican y se entregan por separado, así que
+ * cada uno lleva su código.
+ */
+export function glassesKindsFromText(rawText: string): GlassesKind[] {
+  const cerca = /CERCA|ADD/i.test(rawText);
+  // Sin mención de cerca, o cuando el texto no se entiende, es un par de lejos:
+  // es lo que pide la enorme mayoría de la gente que se acerca.
+  const lejos = !cerca || /LEJOS/i.test(rawText);
+  return [...(lejos ? (['LEJOS'] as const) : []), ...(cerca ? (['CERCA'] as const) : [])];
+}
+
 /** Lejos y cerca son dos pares; sólo lejos, uno. */
 export function pairsFromText(rawText: string): number {
-  return /CERCA|ADD/i.test(rawText) ? 2 : 1;
+  return glassesKindsFromText(rawText).length;
 }

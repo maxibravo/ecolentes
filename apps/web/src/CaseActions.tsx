@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { api, type CaseDetail, type Role } from './lib/api';
+import { isMinor } from '@ecolentes/shared';
+import { api, formatDni, type CaseDetail, type Role } from './lib/api';
 
 type Props = { detail: CaseDetail; role: Role; onDone: () => void };
 
@@ -288,8 +289,18 @@ function DeliveryForm({
   run: (action: () => Promise<unknown>) => Promise<void>;
 }) {
   const fullName = `${person.firstName} ${person.lastName}`;
-  const [receivedBy, setReceivedBy] = useState(fullName);
-  const [isRepresentative, setIsRepresentative] = useState(false);
+  const menor = isMinor(person);
+
+  // Si es menor, la entrega arranca marcada como "retira el tutor": es lo que
+  // corresponde, y así nadie tiene que acordarse de tildarlo.
+  const [isRepresentative, setIsRepresentative] = useState(menor === true);
+  const [receivedBy, setReceivedBy] = useState(
+    menor === true ? (person.representativeName ?? '') : fullName,
+  );
+  const [receivedByDni, setReceivedByDni] = useState('');
+  const [note, setNote] = useState('');
+
+  const faltaMotivo = menor === true && !isRepresentative && !note.trim();
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -298,33 +309,92 @@ function DeliveryForm({
         deliveredAt: new Date().toISOString(),
         receivedBy,
         isRepresentative,
+        ...(isRepresentative && receivedByDni.trim() ? { receivedByDni } : {}),
+        ...(note.trim() ? { note } : {}),
       }),
     );
   }
 
   return (
     <form onSubmit={submit} className="stack-tight">
-      <label htmlFor="recibio">Quién retiró</label>
-      <input
-        id="recibio"
-        value={receivedBy}
-        onChange={(e) => setReceivedBy(e.target.value)}
-        required
-      />
+      {menor === true && (
+        <p className="aviso">
+          {fullName} es menor de edad ({person.representativeBond?.toLowerCase() ?? 'tutor'}
+          {person.representativeName ? `: ${person.representativeName}` : ''}). Los anteojos se le
+          entregan a su padre, madre o tutor.
+        </p>
+      )}
+      {menor === null && (
+        <p className="muted">
+          La ficha no tiene fecha de nacimiento ni edad, así que no se puede saber si es menor.
+          Completala si hace falta.
+        </p>
+      )}
+
       <label className="check">
         <input
           type="checkbox"
           checked={isRepresentative}
           onChange={(e) => {
             setIsRepresentative(e.target.checked);
-            if (e.target.checked && receivedBy === fullName && person.representativeName) {
-              setReceivedBy(person.representativeName);
+            if (e.target.checked) {
+              // El motivo es para cuando retira el propio chico: si retira el
+              // tutor no corresponde, y quedaría escrito en el expediente algo
+              // que no pasó.
+              setNote('');
+              if (receivedBy === fullName) setReceivedBy(person.representativeName ?? '');
+            } else if (receivedBy === (person.representativeName ?? '')) {
+              setReceivedBy(fullName);
             }
           }}
         />
-        No es la persona, retira un representante
+        {menor === true ? 'Retira el padre, la madre o el tutor' : 'Retira un representante'}
       </label>
-      <button type="submit" disabled={busy}>
+
+      <label htmlFor="recibio">{isRepresentative ? 'Nombre de quien retira' : 'Quién retiró'}</label>
+      <input
+        id="recibio"
+        value={receivedBy}
+        placeholder={isRepresentative ? 'Nombre y apellido del tutor' : fullName}
+        onChange={(e) => setReceivedBy(e.target.value)}
+        required
+      />
+
+      {isRepresentative && (
+        <>
+          <label htmlFor="dni-retira">DNI de quien retira</label>
+          <input
+            id="dni-retira"
+            value={receivedByDni}
+            placeholder="27.884.102"
+            inputMode="numeric"
+            onChange={(e) => setReceivedByDni(e.target.value)}
+          />
+          <p className="muted">
+            Queda en el expediente como respaldo de a quién se le dieron los anteojos.
+            {receivedByDni.replace(/\D/g, '').length >= 7 &&
+              ` Se guarda ${formatDni(receivedByDni.replace(/\D/g, ''))}.`}
+          </p>
+        </>
+      )}
+
+      {menor === true && !isRepresentative && (
+        <>
+          <label htmlFor="motivo-entrega">Por qué se los lleva la propia persona</label>
+          <input
+            id="motivo-entrega"
+            value={note}
+            placeholder="Vino solo al CAC y la madre autorizó por teléfono"
+            onChange={(e) => setNote(e.target.value)}
+            required
+          />
+          <p className="muted">
+            Se puede entregar igual, pero el motivo queda escrito en el expediente.
+          </p>
+        </>
+      )}
+
+      <button type="submit" disabled={busy || faltaMotivo}>
         {busy ? 'Guardando…' : 'Registrar la entrega'}
       </button>
     </form>

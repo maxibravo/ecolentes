@@ -3,6 +3,7 @@ import {
   DEMO_OPTICIAN,
   DEMO_PEOPLE,
   DEMO_USERS,
+  glassesKindsFromText,
   pairsFromText,
   parsePrescription,
 } from '@ecolentes/shared';
@@ -10,6 +11,7 @@ import type {
   CaseDetail,
   CaseEvent,
   CaseStage,
+  Glasses,
   Person,
   Quote,
   Role,
@@ -36,6 +38,8 @@ export type DemoState = {
   opticianId: string;
   opticianName: string;
   nextCode: number;
+  /** El próximo número de anteojo. Va aparte del número de expediente. */
+  nextGlassesCode: number;
 };
 
 const DAY = 86_400_000;
@@ -90,6 +94,7 @@ export function buildState(): DemoState {
     lastName: p.lastName,
     birthDate: p.birthDate ?? null,
     ageAtIntake: null,
+    ageTakenAt: null,
     sex: p.sex ?? null,
     phone: p.phone ?? null,
     address: null,
@@ -102,6 +107,10 @@ export function buildState(): DemoState {
     createdAt: daysAgoIso(60),
     updatedAt: daysAgoIso(60),
   }));
+
+  // Los anteojos recién existen cuando Dirección aprueba la propuesta, así que
+  // sólo los expedientes que pasaron por ahí tienen código de anteojo.
+  let glassesCode = 0;
 
   const cases: DemoCaseRecord[] = DEMO_CASES.map((demo, i) => {
     const person = people.find((p) => p.dni === demo.dni)!;
@@ -147,6 +156,14 @@ export function buildState(): DemoState {
       });
     }
 
+    const glasses: Glasses[] = PAST_APPROVAL.includes(demo.stage)
+      ? glassesKindsFromText(demo.prescription ?? '').map((kind) => ({
+          code: `ANT-${String(++glassesCode).padStart(4, '0')}`,
+          kind,
+          deliveredAt: demo.delivery ? daysAgoIso(demo.delivery.daysAgo) : null,
+        }))
+      : [];
+
     return {
       id: `c-${i}`,
       code: `ECO-${String(i + 1).padStart(4, '0')}`,
@@ -163,10 +180,12 @@ export function buildState(): DemoState {
       reason: demo.reason,
       prescription: demo.prescription ? readPrescription(demo.prescription, demo.daysInStage) : null,
       quotes: quotes.reverse(),
+      glasses,
       delivery: demo.delivery
         ? {
             deliveredAt: daysAgoIso(demo.delivery.daysAgo),
             receivedBy: demo.delivery.receivedBy,
+            receivedByDni: null,
             isRepresentative: demo.delivery.isRepresentative ?? false,
             note: null,
           }
@@ -183,5 +202,6 @@ export function buildState(): DemoState {
     opticianId,
     opticianName: DEMO_OPTICIAN.name,
     nextCode: cases.length + 1,
+    nextGlassesCode: glassesCode + 1,
   };
 }

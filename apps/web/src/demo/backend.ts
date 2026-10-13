@@ -1,4 +1,13 @@
-import { canMove, isOverdue, pairsFromText, parsePrescription, STAGE_RULES } from '@ecolentes/shared';
+import {
+  ageOf,
+  canMove,
+  glassesKindsFromText,
+  isMinor,
+  isOverdue,
+  pairsFromText,
+  parsePrescription,
+  STAGE_RULES,
+} from '@ecolentes/shared';
 import { buildState, type DemoCaseRecord, type DemoState } from './state';
 import type { CaseStage, Role } from '../lib/api';
 
@@ -147,6 +156,7 @@ export function installDemoBackend(): void {
       reason: input.reason || null,
       prescription: null,
       quotes: [],
+      glasses: [],
       delivery: null,
       events: [],
       createdAt: new Date().toISOString(),
@@ -154,6 +164,50 @@ export function installDemoBackend(): void {
     note(created, input.firstNote, 'REQUEST');
     state.cases = [created, ...state.cases];
     return created;
+  }
+
+  /**
+   * El estado de la persona en una línea, igual que lo devuelve la API: si pidió
+   * anteojos, cuántos recibió y qué expediente tiene en curso.
+   */
+  function summarize(person: DemoCaseRecord['person']) {
+    const mine = state.cases
+      .filter((c) => c.person.id === person.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const delivered = mine.flatMap((c) => c.glasses).filter((pair) => pair.deliveredAt);
+    const open = mine.find((c) => c.stage !== 'CLOSED') ?? null;
+
+    return {
+      age: ageOf(person),
+      isMinor: isMinor(person),
+      cases: mine.length,
+      pairsRequested: mine.reduce((total, c) => total + c.pairs, 0),
+      pairsDelivered: delivered.length,
+      lastDeliveryAt:
+        delivered.length > 0
+          ? delivered.map((pair) => pair.deliveredAt!).sort().reverse()[0]!
+          : null,
+      openCase: open && {
+        id: open.id,
+        code: open.code,
+        stage: open.stage,
+        hold: open.hold,
+        stageSince: open.stageSince,
+        overdue: isOverdue(open.stage, new Date(open.stageSince)),
+        glasses: open.glasses,
+      },
+    };
+  }
+
+  /** Los anteojos nacen cuando Dirección aprueba: ahí recién tienen código. */
+  function issueGlasses(c: DemoCaseRecord) {
+    if (c.glasses.length > 0) return;
+    const kinds = glassesKindsFromText(c.prescription?.rawText ?? '');
+    c.glasses = kinds.map((kind) => ({
+      code: `ANT-${String(state.nextGlassesCode++).padStart(4, '0')}`,
+      kind,
+      deliveredAt: null,
+    }));
   }
 
   function openCaseOf(dni: string) {
@@ -183,6 +237,7 @@ export function installDemoBackend(): void {
       lastName: input.lastName,
       birthDate: null,
       ageAtIntake: null,
+      ageTakenAt: null,
       sex: null,
       phone: input.phone ?? null,
       address: null,
@@ -243,14 +298,16 @@ export function installDemoBackend(): void {
     // --- Personas
     if (route === '/personas' && method === 'GET') {
       const q = params.get('q') ?? '';
-      if (!q.trim()) return state.people.slice(0, 20);
       const d = digits(q);
       const text = accents(q);
-      return state.people.filter(
-        (p) =>
-          (d.length >= 3 && p.dni.includes(d)) ||
-          accents(`${p.lastName} ${p.firstName}`).includes(text),
-      );
+      const found = !q.trim()
+        ? state.people.slice(0, 20)
+        : state.people.filter(
+            (p) =>
+              (d.length >= 3 && p.dni.includes(d)) ||
+              accents(`${p.lastName} ${p.firstName}`).includes(text),
+          );
+      return found.map((p) => ({ ...p, summary: summarize(p) }));
     }
     if (route.startsWith('/personas/por-dni/')) {
       const found = state.people.find((p) => p.dni === digits(route.split('/').pop() ?? ''));
@@ -300,6 +357,7 @@ export function installDemoBackend(): void {
         list = list.filter(
           (c) =>
             c.code.toLowerCase().includes(q.toLowerCase()) ||
+            c.glasses.some((pair) => pair.code.toLowerCase().includes(q.toLowerCase())) ||
             accents(`${c.person.lastName} ${c.person.firstName}`).includes(text) ||
             (d.length >= 3 && c.person.dni.includes(d)),
         );
@@ -403,6 +461,7 @@ export function installDemoBackend(): void {
         last.decisionNote = text || null;
         last.decidedAt = new Date().toISOString();
         move(found, approve ? 'PRODUCTION' : 'OPTICIAN_QUOTE', approve ? 'Propuesta aprobada' : `Observada: ${text}`);
+        if (approve) issueGlasses(found);
         if (!approve) {
           found.hold = 'QUOTE_OBSERVED';
           found.holdNote = text || null;
@@ -411,12 +470,25 @@ export function installDemoBackend(): void {
       }
 
       if (action === '/entrega') {
+        const porRepresentante = body.isRepresentative === true;
+        const motivo = str(body.note);
+        // Los anteojos de un menor se le entregan a su tutor. Si igual los retira
+        // el chico, se puede, pero hay que escribir por qué.
+        if (isMinor(found.person) === true && !porRepresentante && !motivo) {
+          throw new DemoError(
+            'Es menor de edad: los anteojos se le entregan a su padre, madre o tutor. ' +
+              'Si igual los retira la propia persona, escribí por qué',
+            400,
+          );
+        }
         found.delivery = {
           deliveredAt: str(body.deliveredAt) || new Date().toISOString(),
           receivedBy: str(body.receivedBy),
-          isRepresentative: body.isRepresentative === true,
-          note: null,
+          receivedByDni: porRepresentante ? digits(str(body.receivedByDni)) || null : null,
+          isRepresentative: porRepresentante,
+          note: motivo || null,
         };
+        for (const pair of found.glasses) pair.deliveredAt = found.delivery.deliveredAt;
         move(found, 'DELIVERED', `Recibió ${found.delivery.receivedBy}`);
         return found.delivery;
       }

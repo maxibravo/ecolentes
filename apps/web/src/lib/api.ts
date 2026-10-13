@@ -15,6 +15,8 @@ export type Person = {
   lastName: string;
   birthDate: string | null;
   ageAtIntake: number | null;
+  /** Cuándo se tomó esa edad: sin eso, la edad cargada envejece sin que se note. */
+  ageTakenAt: string | null;
   sex: 'FEMENINO' | 'MASCULINO' | 'OTRO' | null;
   phone: string | null;
   address: string | null;
@@ -26,6 +28,34 @@ export type Person = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** Un par de anteojos. El código es lo que la persona tiene en la mano. */
+export type Glasses = {
+  code: string;
+  kind: 'LEJOS' | 'CERCA';
+  deliveredAt: string | null;
+};
+
+/** El estado de la persona en una línea, para la tabla de Personas. */
+export type PersonSummary = {
+  age: number | null;
+  isMinor: boolean | null;
+  cases: number;
+  pairsRequested: number;
+  pairsDelivered: number;
+  lastDeliveryAt: string | null;
+  openCase: {
+    id: string;
+    code: string;
+    stage: CaseStage;
+    hold: CaseHold | null;
+    stageSince: string;
+    overdue: boolean;
+    glasses: Glasses[];
+  } | null;
+};
+
+export type PersonWithSummary = Person & { summary: PersonSummary };
 
 export type AuditEntry = {
   id: string;
@@ -113,6 +143,7 @@ export type CaseSummary = {
   overdue: boolean;
   person: Person;
   optician: { id: string; name: string } | null;
+  glasses: Glasses[];
 };
 
 export type CaseDetail = CaseSummary & {
@@ -122,6 +153,7 @@ export type CaseDetail = CaseSummary & {
   delivery: {
     deliveredAt: string;
     receivedBy: string;
+    receivedByDni: string | null;
     isRepresentative: boolean;
     note: string | null;
   } | null;
@@ -373,8 +405,8 @@ export const api = {
     return request<{ password: string }>(`/usuarios/${id}/contrasena`, { method: 'POST' });
   },
 
-  searchPeople(q: string) {
-    return request<Person[]>(`/personas?q=${encodeURIComponent(q)}`);
+  searchPeople(q: string, signal?: AbortSignal) {
+    return request<PersonWithSummary[]>(`/personas?q=${encodeURIComponent(q)}`, { signal });
   },
   personByDni(dni: string) {
     return request<Person>(`/personas/por-dni/${encodeURIComponent(dni)}`);
@@ -443,7 +475,13 @@ export const api = {
   },
   registerDelivery(
     id: string,
-    input: { deliveredAt: string; receivedBy: string; isRepresentative?: boolean },
+    input: {
+      deliveredAt: string;
+      receivedBy: string;
+      receivedByDni?: string;
+      isRepresentative?: boolean;
+      note?: string;
+    },
   ) {
     return request<unknown>(`/expedientes/${id}/entrega`, {
       method: 'POST',

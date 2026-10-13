@@ -247,6 +247,7 @@ model Case {
   quotes       Quote[]
   delivery     Delivery?
   events       CaseEvent[]
+  glasses      Glasses[]
 
   @@index([stage])
   @@index([personId])
@@ -329,6 +330,9 @@ model Delivery {
   deliveredAt      DateTime
   /// Quién se los llevó: la persona o su representante.
   receivedBy       String
+  /// El DNI de quien retiró, cuando no es la persona del expediente. Es el
+  /// respaldo de que los anteojos de un menor se le dieron a su tutor.
+  receivedByDni    String?
   isRepresentative Boolean  @default(false)
   note             String?
 
@@ -336,6 +340,33 @@ model Delivery {
   handedBy   User?   @relation("DeliveryHandedBy", fields: [handedById], references: [id], onDelete: SetNull)
 
   @@map("deliveries")
+}
+
+enum GlassesKind {
+  LEJOS
+  CERCA
+}
+
+/// Un par de anteojos, con su propio código. Un expediente de lejos y cerca son
+/// dos anteojos distintos: se fabrican y se entregan por separado, y la gente
+/// pregunta por uno sin el otro. Por eso el seguimiento es del anteojo y no sólo
+/// del expediente.
+model Glasses {
+  id   String @id @default(uuid())
+  /// Lo que se le dicta a la persona por teléfono: ANT-0042.
+  code String @unique
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  kind GlassesKind
+
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([caseId])
+  @@map("glasses")
 }
 
 /// El historial del expediente, que es lo que se ve en la ficha.
