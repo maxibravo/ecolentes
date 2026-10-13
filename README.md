@@ -93,6 +93,13 @@ packages/shared  Tipos y constantes que usan los dos (roles, etapas, canales)
 
 Las etapas del expediente, los roles y los canales de ingreso viven en `packages/shared`, para que la API y la interfaz no se vayan cada una por su lado.
 
+## El circuito, paso a paso
+
+[`docs/circuito-del-expediente.md`](docs/circuito-del-expediente.md) cuenta el
+recorrido entero, de la solicitud a la entrega: qué pasa en cada etapa, qué rol
+la mueve, qué controla el sistema antes de dejar pasar, qué se hace cuando algo
+se traba y cómo se sigue un expediente.
+
 ## Por dónde entran los pedidos
 
 Un pedido puede llegar de territorio (relevamiento, tráiler, CAC, escuela), de un
