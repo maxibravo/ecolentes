@@ -40,7 +40,11 @@ export class PersonsService {
 
     const people = await this.prisma.person.findMany({
       where,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      // Por searchName, que es apellido y nombre sin acentos: ordenar por
+      // lastName manda a Ávila después de Zárate, porque el acento ordena
+      // detrás de todas las letras.
+      orderBy: { searchName: 'asc' },
+      skip: params.skip ?? 0,
       take,
     });
     if (people.length === 0) return [];

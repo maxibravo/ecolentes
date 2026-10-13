@@ -405,8 +405,12 @@ export const api = {
     return request<{ password: string }>(`/usuarios/${id}/contrasena`, { method: 'POST' });
   },
 
-  searchPeople(q: string, signal?: AbortSignal) {
-    return request<PersonWithSummary[]>(`/personas?q=${encodeURIComponent(q)}`, { signal });
+  searchPeople(params: { q?: string; skip?: number; take?: number }, signal?: AbortSignal) {
+    const search = new URLSearchParams();
+    if (params.q) search.set('q', params.q);
+    if (params.skip) search.set('skip', String(params.skip));
+    if (params.take) search.set('take', String(params.take));
+    return request<PersonWithSummary[]>(`/personas?${search.toString()}`, { signal });
   },
   personByDni(dni: string) {
     return request<Person>(`/personas/por-dni/${encodeURIComponent(dni)}`);

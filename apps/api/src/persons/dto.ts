@@ -158,4 +158,11 @@ export class SearchPersonDto {
   @Min(1)
   @Max(100)
   take?: number;
+
+  /** Cuántas fichas saltear, para traer la página siguiente. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  skip?: number;
 }

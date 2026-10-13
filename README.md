@@ -112,6 +112,11 @@ Los anteojos se crean cuando Dirección aprueba la propuesta de la óptica, que 
 cuando el anteojo empieza a existir como objeto. La búsqueda de la bandeja
 entiende los dos códigos, así que alcanza con el papelito que tiene la persona.
 
+Los expedientes que ya habían pasado por aprobación antes de que el código
+existiera reciben el suyo con la migración
+`20261013161500_anteojos_de_expedientes_anteriores`, que mira la receta para
+saber si son uno o dos y les pone la fecha de entrega que tenga el expediente.
+
 ## Menores de edad
 
 Los anteojos de un menor se le entregan a su padre, madre o tutor: la pantalla de
@@ -184,10 +189,12 @@ y los carga también `prisma:seed-demo` (pide `DEMO_SEED=si` para no correrse so
 
 ## Datos
 
-La pantalla de Personas es una tabla que filtra mientras se escribe, sin botón:
-sirve para el DNI y para el apellido, y cada fila muestra lo que antes había que
-entrar a buscar ficha por ficha (si alguna vez pidió anteojos, cuántos recibió,
-qué expediente tiene en curso y hace cuánto está en esa etapa).
+La pantalla de Personas es una tabla que se muestra apenas se entra, de a 25
+fichas, y filtra mientras se escribe, sin botón: sirve para el DNI y para el
+apellido, y cada fila muestra lo que antes había que entrar a buscar ficha por
+ficha (si alguna vez pidió anteojos, cuántos recibió, qué expediente tiene en
+curso y hace cuánto está en esa etapa). Se ordena por `searchName`, que no tiene
+acentos, porque ordenar por el apellido tal cual manda a Ávila detrás de Zárate.
 
 El DNI identifica a la persona. Los nombres se guardan además sin acentos y en
 minúscula (`searchName`), para que buscar "juarez" encuentre a Juárez: nadie
