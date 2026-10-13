@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, type Person } from './lib/api';
+import { BirthDate, birthDateFields, EMPTY_BIRTH_DATE } from './BirthDate';
 
 type Props = { dni: string; onCreated: (person: Person) => void; onCancel: () => void };
 
@@ -7,8 +8,7 @@ export function PersonForm({ dni, onCreated, onCancel }: Props) {
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
-    birthDate: '',
-    ageAtIntake: '',
+    ...EMPTY_BIRTH_DATE,
     phone: '',
     neighborhood: '',
     address: '',
@@ -17,6 +17,10 @@ export function PersonForm({ dni, onCreated, onCancel }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [duplicateId, setDuplicateId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+
+  // Sin fecha ni edad la ficha no sirve para decidir una entrega, así que no se
+  // guarda a medias: o la fecha, o la edad si la persona no la sabe.
+  const sinEdad = form.birthDate === '' && form.ageAtIntake === '';
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -32,8 +36,7 @@ export function PersonForm({ dni, onCreated, onCancel }: Props) {
         dni,
         firstName: form.firstName,
         lastName: form.lastName,
-        ...(form.birthDate ? { birthDate: form.birthDate } : {}),
-        ...(form.ageAtIntake ? { ageAtIntake: Number(form.ageAtIntake) } : {}),
+        ...birthDateFields(form),
         ...(form.phone ? { phone: form.phone } : {}),
         ...(form.neighborhood ? { neighborhood: form.neighborhood } : {}),
         ...(form.address ? { address: form.address } : {}),
@@ -77,26 +80,11 @@ export function PersonForm({ dni, onCreated, onCancel }: Props) {
             required
           />
         </div>
-        <div>
-          <label htmlFor="birthDate">Fecha de nacimiento</label>
-          <input
-            id="birthDate"
-            type="date"
-            value={form.birthDate}
-            onChange={(e) => set('birthDate', e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="ageAtIntake">Edad, sólo si no tenés la fecha</label>
-          <input
-            id="ageAtIntake"
-            type="number"
-            min="0"
-            max="120"
-            value={form.ageAtIntake}
-            onChange={(e) => set('ageAtIntake', e.target.value)}
-          />
-        </div>
+        <BirthDate
+          value={form}
+          onChange={(value) => setForm((f) => ({ ...f, ...value }))}
+          hasRepresentative={form.representativeName !== ''}
+        />
         <div>
           <label htmlFor="phone">Contacto</label>
           <input id="phone" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
@@ -139,7 +127,7 @@ export function PersonForm({ dni, onCreated, onCancel }: Props) {
       )}
 
       <div className="actions">
-        <button type="submit" disabled={sending}>
+        <button type="submit" disabled={sending || sinEdad}>
           {sending ? 'Guardando…' : 'Guardar ficha'}
         </button>
         <button type="button" className="secondary" onClick={onCancel}>

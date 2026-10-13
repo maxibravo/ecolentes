@@ -126,6 +126,15 @@ saber si son uno o dos y les pone la fecha de entrega que tenga el expediente.
 
 ## Menores de edad
 
+Al cargar una ficha, desde Personas o desde un pedido nuevo, se pide la fecha de
+nacimiento y la pantalla muestra la edad mientras se escribe. Se pide la fecha y
+no la edad porque la edad envejece: una ficha cargada como "17 años" sigue
+diciendo 17 dos años después, y de eso depende a quién se le entregan los
+anteojos. La edad suelta queda como salida para territorio, cuando la persona no
+sabe su fecha. La API acepta las dos, y también fichas sin ninguna, porque el
+formulario público no las pide; lo que no acepta es una fecha futura o de hace
+más de 120 años, que siempre es un año mal tipeado.
+
 Los anteojos de un menor se le entregan a su padre, madre o tutor: la pantalla de
 entrega ya viene marcada así y pide el nombre y el DNI de quien retira, que queda
 en el expediente como respaldo. Si igual los retira el propio chico, se puede,

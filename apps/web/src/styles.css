@@ -94,6 +94,9 @@ button {
 }
 
 button[disabled] { opacity: 0.6; cursor: default; }
+/* Un campo apagado se tiene que ver apagado: la edad se bloquea cuando ya está
+   cargada la fecha de nacimiento. */
+input[disabled] { background: var(--bg); color: var(--muted); }
 
 button.secondary { background: transparent; color: var(--accent); }
 
