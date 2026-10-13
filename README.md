@@ -101,6 +101,26 @@ pedido individual o de concejales, o por fuera: redes y formulario público.
   Lo que entra por ahí queda con la identidad sin verificar hasta que alguien de
   Salud hable con la persona.
 
+## Los anteojos y su código
+
+Un expediente puede terminar en dos anteojos: el de lejos y el de cerca se
+fabrican y se entregan por separado, y la gente pregunta por uno sin el otro.
+Por eso cada par tiene su propio código, `ANT-0042`, aparte del número de
+expediente `ECO-0042`.
+
+Los anteojos se crean cuando Dirección aprueba la propuesta de la óptica, que es
+cuando el anteojo empieza a existir como objeto. La búsqueda de la bandeja
+entiende los dos códigos, así que alcanza con el papelito que tiene la persona.
+
+## Menores de edad
+
+Los anteojos de un menor se le entregan a su padre, madre o tutor: la pantalla de
+entrega ya viene marcada así y pide el nombre y el DNI de quien retira, que queda
+en el expediente como respaldo. Si igual los retira el propio chico, se puede,
+pero hay que escribir por qué y eso queda escrito también. Una ficha sin fecha de
+nacimiento ni edad no frena la entrega, pero tampoco afirma que la persona sea
+mayor: la pantalla lo dice.
+
 ## Reportes
 
 `/api/v1/reportes` tiene el resumen, el padrón de entregas, los pendientes de
@@ -163,6 +183,11 @@ sin levantar nada. Los datos de ejemplo están en `packages/shared/src/demo-data
 y los carga también `prisma:seed-demo` (pide `DEMO_SEED=si` para no correrse solo).
 
 ## Datos
+
+La pantalla de Personas es una tabla que filtra mientras se escribe, sin botón:
+sirve para el DNI y para el apellido, y cada fila muestra lo que antes había que
+entrar a buscar ficha por ficha (si alguna vez pidió anteojos, cuántos recibió,
+qué expediente tiene en curso y hace cuánto está en esa etapa).
 
 El DNI identifica a la persona. Los nombres se guardan además sin acentos y en
 minúscula (`searchName`), para que buscar "juarez" encuentre a Juárez: nadie

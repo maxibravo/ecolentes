@@ -53,7 +53,7 @@ export function CaseInbox({ onOpen }: { onOpen: (id: string) => void }) {
           <input
             id="buscar"
             value={q}
-            placeholder="Buscar por expediente, apellido o DNI"
+            placeholder="Buscar por expediente, anteojo, apellido o DNI"
             onChange={(e) => setQ(e.target.value)}
           />
           <select

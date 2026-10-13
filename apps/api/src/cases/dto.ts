@@ -101,6 +101,11 @@ export class DeliveryDto {
   @IsBoolean()
   isRepresentative?: boolean;
 
+  /** El DNI de quien retira, cuando no es la persona del expediente. */
+  @IsOptional()
+  @IsString()
+  receivedByDni?: string;
+
   @IsOptional()
   @IsString()
   note?: string;

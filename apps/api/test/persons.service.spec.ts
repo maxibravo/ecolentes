@@ -145,3 +145,93 @@ describe('PersonsService.update', () => {
     );
   });
 });
+
+describe('PersonsService.search', () => {
+  /** El buscador con una ficha y los expedientes que se le indiquen. */
+  function buildSearch(person: Record<string, unknown>, cases: unknown[]) {
+    const audit = { record: jest.fn(), historyFor: jest.fn() };
+    const findMany = jest.fn().mockResolvedValue(cases);
+    const prisma = {
+      person: { findMany: jest.fn().mockResolvedValue([{ id: 'p1', dni: '47220185', ...person }]) },
+      case: { findMany },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { service: new PersonsService(prisma as any, audit as any), findMany };
+  }
+
+  const caso = (over: Record<string, unknown> = {}) => ({
+    id: 'c1',
+    code: 'ECO-0001',
+    personId: 'p1',
+    stage: 'READY_FOR_PICKUP',
+    hold: null,
+    pairs: 2,
+    stageSince: new Date('2026-10-01T12:00:00Z'),
+    createdAt: new Date('2026-09-01T12:00:00Z'),
+    glasses: [
+      { code: 'ANT-0001', kind: 'LEJOS', deliveredAt: null },
+      { code: 'ANT-0002', kind: 'CERCA', deliveredAt: null },
+    ],
+    ...over,
+  });
+
+  it('dice que nunca pidió anteojos cuando no tiene ningún expediente', async () => {
+    const { service } = buildSearch({ birthDate: new Date('1984-03-11') }, []);
+
+    const [row] = await service.search({ q: '472' });
+
+    expect(row!.summary).toMatchObject({ cases: 0, pairsRequested: 0, pairsDelivered: 0 });
+    expect(row!.summary.openCase).toBeNull();
+  });
+
+  it('trae el expediente en curso con su etapa y sus anteojos', async () => {
+    const { service } = buildSearch({ birthDate: new Date('2015-08-07') }, [caso()]);
+
+    const [row] = await service.search({ q: '47220185' });
+
+    expect(row!.summary.isMinor).toBe(true);
+    expect(row!.summary.openCase).toMatchObject({ code: 'ECO-0001', stage: 'READY_FOR_PICKUP' });
+    expect(row!.summary.openCase!.glasses.map((g) => g.code)).toEqual(['ANT-0001', 'ANT-0002']);
+    expect(row!.summary.pairsRequested).toBe(2);
+    expect(row!.summary.pairsDelivered).toBe(0);
+  });
+
+  it('cuenta los pares entregados y no muestra el expediente cerrado como en curso', async () => {
+    const entregado = new Date('2026-08-20T12:00:00Z');
+    const { service } = buildSearch({ birthDate: new Date('1984-03-11') }, [
+      caso({
+        stage: 'CLOSED',
+        glasses: [
+          { code: 'ANT-0001', kind: 'LEJOS', deliveredAt: entregado },
+          { code: 'ANT-0002', kind: 'CERCA', deliveredAt: entregado },
+        ],
+      }),
+    ]);
+
+    const [row] = await service.search({});
+
+    expect(row!.summary.openCase).toBeNull();
+    expect(row!.summary.pairsDelivered).toBe(2);
+    expect(row!.summary.lastDeliveryAt).toEqual(entregado);
+  });
+
+  it('pide los expedientes de todas las fichas en una sola consulta', async () => {
+    const { service, findMany } = buildSearch({ birthDate: null, ageAtIntake: null }, [caso()]);
+
+    await service.search({ q: 'juarez' });
+
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { personId: { in: ['p1'] } } }),
+    );
+  });
+
+  it('sin fecha de nacimiento ni edad no afirma que sea mayor', async () => {
+    const { service } = buildSearch({ birthDate: null, ageAtIntake: null }, []);
+
+    const [row] = await service.search({});
+
+    expect(row!.summary.isMinor).toBeNull();
+    expect(row!.summary.age).toBeNull();
+  });
+});

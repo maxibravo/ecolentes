@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, Prisma, type Person } from '@prisma/client';
+import { AuditAction, CaseStage, Prisma, type Person } from '@prisma/client';
+import { isMinor, isOverdue, ageOf } from '@ecolentes/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { normalizeDni } from '../common/dni';
@@ -15,10 +16,12 @@ export class PersonsService {
   ) {}
 
   /**
-   * Busca por DNI o por nombre. Es lo que se usa antes de crear una ficha,
-   * para no terminar con la misma persona cargada dos veces.
+   * Busca por DNI o por nombre, y con cada ficha devuelve lo que hay que saber
+   * de la persona sin entrar a abrirla: si alguna vez pidió anteojos, cuántos
+   * recibió, y si tiene un expediente en curso en qué etapa está. Es lo que se
+   * contesta por teléfono, y antes había que abrir ficha por ficha para verlo.
    */
-  async search(params: SearchPersonDto) {
+  async search(params: SearchPersonDto): Promise<PersonWithSummary[]> {
     const take = params.take ?? 20;
     const q = params.q?.trim();
     const where: Prisma.PersonWhereInput = {};
@@ -35,11 +38,43 @@ export class PersonsService {
       where.neighborhood = { equals: params.neighborhood, mode: Prisma.QueryMode.insensitive };
     }
 
-    return this.prisma.person.findMany({
+    const people = await this.prisma.person.findMany({
       where,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       take,
     });
+    if (people.length === 0) return [];
+
+    // Los expedientes de todas las fichas encontradas en una sola consulta: una
+    // por fila haría veinte consultas cada vez que alguien agrega un dígito.
+    const cases = await this.prisma.case.findMany({
+      where: { personId: { in: people.map((person) => person.id) } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        code: true,
+        personId: true,
+        stage: true,
+        hold: true,
+        pairs: true,
+        stageSince: true,
+        createdAt: true,
+        glasses: { select: { code: true, kind: true, deliveredAt: true }, orderBy: { code: 'asc' } },
+      },
+    });
+
+    const byPerson = new Map<string, typeof cases>();
+    for (const found of cases) {
+      const list = byPerson.get(found.personId);
+      if (list) list.push(found);
+      else byPerson.set(found.personId, [found]);
+    }
+
+    const now = new Date();
+    return people.map((person) => ({
+      ...person,
+      summary: summarize(byPerson.get(person.id) ?? [], person, now),
+    }));
   }
 
   /** La ficha exacta de un DNI, o null. La usa el formulario de carga. */
@@ -176,6 +211,71 @@ export class PersonsService {
 
     return data;
   }
+}
+
+/** Un anteojo visto desde la ficha de la persona: el código es lo que ella tiene. */
+export type GlassesLine = { code: string; kind: 'LEJOS' | 'CERCA'; deliveredAt: Date | null };
+
+/** El estado de la persona en una línea, para la tabla de Personas. */
+export type PersonSummary = {
+  age: number | null;
+  /** null cuando la ficha no tiene ni fecha de nacimiento ni edad. */
+  isMinor: boolean | null;
+  /** Si alguna vez pidió anteojos. Cero expedientes es una ficha sin pedido. */
+  cases: number;
+  /** Pares pedidos y pares ya entregados, contando todos los expedientes. */
+  pairsRequested: number;
+  pairsDelivered: number;
+  lastDeliveryAt: Date | null;
+  /** El expediente en curso, si hay uno. Los cerrados no cuentan. */
+  openCase: {
+    id: string;
+    code: string;
+    stage: CaseStage;
+    hold: string | null;
+    stageSince: Date;
+    overdue: boolean;
+    glasses: GlassesLine[];
+  } | null;
+};
+
+export type PersonWithSummary = Person & { summary: PersonSummary };
+
+function summarize(
+  cases: {
+    id: string;
+    code: string;
+    stage: CaseStage;
+    hold: string | null;
+    pairs: number;
+    stageSince: Date;
+    glasses: GlassesLine[];
+  }[],
+  person: Person,
+  now: Date,
+): PersonSummary {
+  const delivered = cases.flatMap((found) => found.glasses).filter((pair) => pair.deliveredAt);
+  const fechas = delivered.map((pair) => pair.deliveredAt!.getTime());
+  // El primero que no está cerrado: cases viene del más nuevo al más viejo.
+  const open = cases.find((found) => found.stage !== CaseStage.CLOSED) ?? null;
+
+  return {
+    age: ageOf(person, now),
+    isMinor: isMinor(person, now),
+    cases: cases.length,
+    pairsRequested: cases.reduce((total, found) => total + found.pairs, 0),
+    pairsDelivered: delivered.length,
+    lastDeliveryAt: fechas.length > 0 ? new Date(Math.max(...fechas)) : null,
+    openCase: open && {
+      id: open.id,
+      code: open.code,
+      stage: open.stage,
+      hold: open.hold,
+      stageSince: open.stageSince,
+      overdue: isOverdue(open.stage, open.stageSince, now),
+      glasses: open.glasses,
+    },
+  };
 }
 
 /** Qué cambió, para dejarlo en la auditoría sin guardar la ficha entera. */

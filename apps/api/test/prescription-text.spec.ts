@@ -1,4 +1,4 @@
-import { pairsFromText, parsePrescription } from '@ecolentes/shared';
+import { glassesKindsFromText, pairsFromText, parsePrescription } from '@ecolentes/shared';
 
 describe('graduación escrita en la planilla', () => {
   it('lee lejos de los dos ojos y la adición de cerca', () => {
@@ -58,5 +58,26 @@ describe('graduación escrita en la planilla', () => {
   it('cuenta dos pares cuando hay graduación de cerca', () => {
     expect(pairsFromText('LEJOS OD 180°-3,50 // OI 180°-2,75 - CERCA ADD+1,50 AO')).toBe(2);
     expect(pairsFromText('LEJOS OD 2°-0,50 // OI NEUTRO')).toBe(1);
+  });
+});
+
+describe('cuántos anteojos sale una receta', () => {
+  it('lejos y cerca son dos anteojos distintos', () => {
+    const receta = 'LEJOS OD 180°-3,50 // OI 180°-2,75 - CERCA ADD+1,50 AO';
+    expect(glassesKindsFromText(receta)).toEqual(['LEJOS', 'CERCA']);
+    expect(pairsFromText(receta)).toBe(2);
+  });
+
+  it('sólo lejos es un anteojo', () => {
+    expect(glassesKindsFromText('LEJOS OD +0,25 // OI +0,50')).toEqual(['LEJOS']);
+  });
+
+  it('sólo cerca es un anteojo de cerca', () => {
+    expect(glassesKindsFromText('CERCA ADD+2,00 AO')).toEqual(['CERCA']);
+  });
+
+  it('un texto que no se entiende se toma como un anteojo de lejos', () => {
+    expect(glassesKindsFromText('ilegible')).toEqual(['LEJOS']);
+    expect(pairsFromText('')).toBe(1);
   });
 });

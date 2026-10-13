@@ -3,6 +3,7 @@ import {
   api,
   CHANNEL_LABELS,
   daysSince,
+  formatDate,
   formatDni,
   HOLD_LABELS,
   STAGE_LABELS,
@@ -95,6 +96,29 @@ export function CaseDetail({
         </dl>
       </article>
 
+      {detail.glasses.length > 0 && (
+        <article className="card">
+          <h3>Anteojos</h3>
+          <p className="muted">
+            Cada par tiene su propio código. Es el que se le dicta a la persona, y con el que se
+            puede buscar en la bandeja.
+          </p>
+          <ul className="glasses">
+            {detail.glasses.map((pair) => (
+              <li key={pair.code}>
+                <strong className="mono">{pair.code}</strong>
+                <span>{pair.kind === 'CERCA' ? 'Cerca' : 'Lejos'}</span>
+                <span className={pair.deliveredAt ? 'chip' : 'muted'}>
+                  {pair.deliveredAt
+                    ? `Entregado el ${formatDate(pair.deliveredAt)}`
+                    : 'En el municipio'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </article>
+      )}
+
       {detail.prescription && (
         <article className="card">
           <h3>Receta</h3>
@@ -149,8 +173,11 @@ export function CaseDetail({
           <p>
             {new Date(detail.delivery.deliveredAt).toLocaleDateString('es-AR')} · retiró{' '}
             {detail.delivery.receivedBy}
-            {detail.delivery.isRepresentative ? ' (representante)' : ''}
+            {detail.delivery.isRepresentative
+              ? ` (${detail.delivery.receivedByDni ? `DNI ${formatDni(detail.delivery.receivedByDni)}` : 'representante'})`
+              : ''}
           </p>
+          {detail.delivery.note && <p className="muted">{detail.delivery.note}</p>}
         </article>
       )}
 

@@ -6,8 +6,17 @@ import {
   QuoteStatus,
   type Case,
   type CaseHold,
+  type GlassesKind,
 } from '@prisma/client';
-import { canMove, isOverdue, pairsFromText, parsePrescription, STAGE_RULES } from '@ecolentes/shared';
+import {
+  canMove,
+  glassesKindsFromText,
+  isMinor,
+  isOverdue,
+  pairsFromText,
+  parsePrescription,
+  STAGE_RULES,
+} from '@ecolentes/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeDni } from '../common/dni';
 import { AuditService } from '../audit/audit.service';
@@ -42,6 +51,9 @@ export class CasesService {
     if (params.q) {
       const digits = normalizeDni(params.q);
       where.OR = [
+        // Alguien puede preguntar por el número del anteojo y no por el del
+        // expediente: son dos códigos distintos y la gente tiene el que le dieron.
+        { glasses: { some: { code: { contains: params.q, mode: Prisma.QueryMode.insensitive } } } },
         { code: { contains: params.q, mode: Prisma.QueryMode.insensitive } },
         { person: { searchName: { contains: searchText(params.q) } } },
         // Sin este corte, buscar un apellido deja `contains: ''` en el DNI, que
@@ -61,7 +73,9 @@ export class CasesService {
 
     const cases = await this.prisma.case.findMany({
       where,
-      include: { person: true, optician: true },
+      // Los códigos de los anteojos viajan con la fila: quien busca por uno
+      // espera verlo en el resultado, y no tener que abrir el expediente.
+      include: { person: true, optician: true, glasses: { orderBy: { code: 'asc' } } },
       orderBy: { stageSince: 'asc' },
       take: params.take ?? 50,
     });
@@ -80,6 +94,7 @@ export class CasesService {
         prescription: true,
         quotes: { orderBy: { version: 'desc' } },
         delivery: true,
+        glasses: { orderBy: { code: 'asc' } },
         events: { orderBy: { occurredAt: 'desc' } },
       },
     });
@@ -262,6 +277,11 @@ export class CasesService {
       },
     });
 
+    // Aprobada la propuesta, los anteojos pasan a existir como objetos: cada uno
+    // con su código, porque el de lejos y el de cerca se fabrican y se entregan
+    // por separado y la gente pregunta por uno sin el otro.
+    if (dto.approve) await this.issueGlasses(caseId);
+
     const to = dto.approve ? CaseStage.PRODUCTION : CaseStage.OPTICIAN_QUOTE;
     await this.moveStage(
       caseId,
@@ -277,6 +297,26 @@ export class CasesService {
     }
 
     return this.prisma.case.findUniqueOrThrow({ where: { id: caseId } });
+  }
+
+  /**
+   * Le da un código a cada anteojo del expediente. Se corre una sola vez: si ya
+   * los tiene, no agrega otros, porque aprobar dos veces no fabrica más anteojos.
+   */
+  private async issueGlasses(caseId: string): Promise<void> {
+    const yaTiene = await this.prisma.glasses.count({ where: { caseId } });
+    if (yaTiene > 0) return;
+
+    const prescription = await this.prisma.prescription.findUnique({ where: { caseId } });
+    const kinds = prescription ? glassesKindsFromText(prescription.rawText) : ['LEJOS' as const];
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const kind of kinds) {
+        await tx.glasses.create({
+          data: { caseId, code: await nextGlassesCode(tx), kind: kind as GlassesKind },
+        });
+      }
+    });
   }
 
   async moveStage(caseId: string, dto: MoveStageDto, author: AuthenticatedUser): Promise<Case> {
@@ -347,25 +387,40 @@ export class CasesService {
   }
 
   async registerDelivery(caseId: string, dto: DeliveryDto, author: AuthenticatedUser) {
-    await this.requireCase(caseId);
+    const found = await this.requireCase(caseId);
+    const person = await this.prisma.person.findUniqueOrThrow({ where: { id: found.personId } });
+    const porRepresentante = dto.isRepresentative ?? false;
+
+    // Los anteojos de un menor se le entregan a su padre, madre o tutor. Puede
+    // pasar que el chico vaya solo y se le quiera dar igual, así que no se
+    // prohíbe: se pide decir por qué, y eso queda escrito en el expediente.
+    if (isMinor(person) === true && !porRepresentante && !dto.note?.trim()) {
+      throw new BadRequestException(
+        'Es menor de edad: los anteojos se le entregan a su padre, madre o tutor. ' +
+          'Si igual los retira la propia persona, escribí por qué',
+      );
+    }
+
+    const datos = {
+      deliveredAt: new Date(dto.deliveredAt),
+      receivedBy: dto.receivedBy.trim(),
+      receivedByDni: porRepresentante ? normalizeDni(dto.receivedByDni ?? '') || null : null,
+      isRepresentative: porRepresentante,
+      note: dto.note?.trim() || null,
+      handedById: author.id,
+    };
 
     const delivery = await this.prisma.delivery.upsert({
       where: { caseId },
-      create: {
-        caseId,
-        deliveredAt: new Date(dto.deliveredAt),
-        receivedBy: dto.receivedBy.trim(),
-        isRepresentative: dto.isRepresentative ?? false,
-        note: dto.note?.trim() || null,
-        handedById: author.id,
-      },
-      update: {
-        deliveredAt: new Date(dto.deliveredAt),
-        receivedBy: dto.receivedBy.trim(),
-        isRepresentative: dto.isRepresentative ?? false,
-        note: dto.note?.trim() || null,
-        handedById: author.id,
-      },
+      create: { caseId, ...datos },
+      update: datos,
+    });
+
+    // Los anteojos quedan entregados junto con el expediente: es lo que hace que
+    // buscar por el código del anteojo diga "entregado" y no sólo "en el municipio".
+    await this.prisma.glasses.updateMany({
+      where: { caseId },
+      data: { deliveredAt: delivery.deliveredAt },
     });
 
     await this.moveStage(
@@ -441,6 +496,13 @@ export class CasesService {
 
 function pick(given: number | undefined, parsed: number | null): number | null {
   return given !== undefined ? given : parsed;
+}
+
+/** ANT-0001, ANT-0002… El número de un anteojo, no el del expediente. */
+async function nextGlassesCode(tx: Prisma.TransactionClient): Promise<string> {
+  const last = await tx.glasses.findFirst({ orderBy: { code: 'desc' }, select: { code: true } });
+  const lastNumber = last ? Number(last.code.replace(/\D/g, '')) : 0;
+  return `ANT-${String(lastNumber + 1).padStart(4, '0')}`;
 }
 
 /** ECO-0001, ECO-0002… Es el número que la gente dice por teléfono. */

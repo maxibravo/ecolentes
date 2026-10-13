@@ -102,11 +102,12 @@ export function App() {
             id={openPersonId}
             role={user.role}
             onBack={() => setOpenPersonId(null)}
+            onOpenCase={setOpenCaseId}
           />
         ) : tab === 'bandeja' ? (
           <CaseInbox onOpen={setOpenCaseId} />
         ) : tab === 'personas' ? (
-          <Search onOpen={setOpenPersonId} />
+          <Search onOpen={setOpenPersonId} onOpenCase={setOpenCaseId} />
         ) : tab === 'redes' ? (
           <Redes onOpen={setOpenCaseId} />
         ) : tab === 'indicadores' ? (

@@ -18,6 +18,7 @@ import {
   DEMO_OPTICIAN,
   DEMO_PEOPLE,
   DEMO_USERS,
+  glassesKindsFromText,
   pairsFromText,
   parsePrescription,
   type DemoCase,
@@ -101,8 +102,19 @@ async function main() {
   const codes = DEMO_CASES.map((_, i) => `ECO-${String(i + 1).padStart(4, '0')}`);
   await prisma.case.deleteMany({ where: { code: { in: codes } } });
 
+  // El número de anteojo corre aparte del de expediente: un expediente de
+  // lejos y cerca son dos anteojos, y uno sin aprobar todavía no tiene ninguno.
+  let glassesCode = 0;
   for (const [index, demo] of DEMO_CASES.entries()) {
-    await createCase(codes[index]!, demo, people, operations, users, optician.id);
+    glassesCode = await createCase(
+      codes[index]!,
+      demo,
+      people,
+      operations,
+      users,
+      optician.id,
+      glassesCode,
+    );
   }
 
   console.log(`Listo: ${DEMO_CASES.length} expedientes de ejemplo.`);
@@ -117,7 +129,8 @@ async function createCase(
   operations: Record<string, string>,
   users: Record<string, string>,
   opticianId: string,
-) {
+  glassesCode: number,
+): Promise<number> {
   const personId = people[demo.dni]!;
   const stageSince = daysAgo(demo.daysInStage);
 
@@ -186,6 +199,20 @@ async function createCase(
     });
   }
 
+  // Los anteojos existen desde que Dirección aprueba la propuesta.
+  if (isPastApproval(demo.stage)) {
+    for (const kind of glassesKindsFromText(demo.prescription ?? '')) {
+      await prisma.glasses.create({
+        data: {
+          caseId: created.id,
+          code: `ANT-${String(++glassesCode).padStart(4, '0')}`,
+          kind,
+          deliveredAt: demo.delivery ? daysAgo(demo.delivery.daysAgo) : null,
+        },
+      });
+    }
+  }
+
   // Un historial mínimo: la solicitud y la etapa en la que quedó.
   await prisma.caseEvent.createMany({
     data: [
@@ -211,6 +238,8 @@ async function createCase(
           ]),
     ],
   });
+
+  return glassesCode;
 }
 
 const PAST_APPROVAL: CaseStage[] = ['PRODUCTION', 'RECEIVED', 'READY_FOR_PICKUP', 'DELIVERED', 'CLOSED'];
