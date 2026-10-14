@@ -27,12 +27,14 @@ const TABS: { key: Tab; label: string; roles: Role[] | null }[] = [
  * El formulario del vecino no pasa por el login. Vive en /solicitud, y también
  * responde a #/solicitud para que ande donde la página se sirve desde una ruta
  * que no se puede reescribir, como la versión de demostración.
+ *
+ * Se mira el final de la ruta y no la ruta entera, porque la aplicación puede
+ * estar montada adentro de otro sitio: ahí el formulario es
+ * /ecolentes/solicitud y sigue siendo el mismo formulario.
  */
-const PUBLIC_PATHS = ['/solicitud', '/solicitud/'];
-
 function isPublicForm(): boolean {
   return (
-    PUBLIC_PATHS.includes(window.location.pathname) ||
+    /\/solicitud\/?$/.test(window.location.pathname) ||
     window.location.hash.startsWith('#/solicitud')
   );
 }
