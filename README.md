@@ -240,6 +240,41 @@ pnpm api:credencial baja "Sistema municipal"
 La clave no se guarda, sólo su hash: si se pierde, se da de baja y se emite
 otra. Se entrega por un canal seguro, no por chat.
 
+## Montarlo adentro de otro sitio
+
+Ecolentes puede servirse solo, en su propio dominio, o colgando de una ruta de
+otro sitio, por ejemplo `https://el-sitio/ecolentes/`, con un botón que lo abra.
+Para lo segundo hay que decirle tres cosas en el `.env` de la raíz:
+
+```
+# De dónde cuelga la web. Van las dos barras.
+WEB_BASE_PATH=/ecolentes/
+# Por dónde le pega el navegador a la API, del mismo origen que la web.
+VITE_API_BASE=/ecolentes/api
+# Sólo si el 3000 lo ocupa el otro proyecto.
+API_PORT=3100
+WEB_API_URL=http://localhost:3100
+```
+
+`WEB_BASE_PATH` hace que la web pida sus archivos a `/ecolentes/assets/…` y no a
+la raíz del otro sitio. `VITE_API_BASE` es la ruta que usa el navegador para la
+API: una ruta del mismo origen, no una dirección completa, así no hay que abrir
+CORS ni hornear un dominio en el build. Empieza con `VITE_` porque es lo único
+que Vite deja llegar al navegador.
+
+Del otro lado, el sitio de adelante tiene que reenviar dos cosas a Ecolentes:
+`/ecolentes/*` a la web y `/ecolentes/api/*` a la API, sacándole el prefijo
+(`/ecolentes/api/v1/health` tiene que llegar como `/api/v1/health`). Cualquier
+ruta bajo `/ecolentes/` devuelve el index, porque la web es una sola página.
+
+El formulario público queda en `/ecolentes/solicitud`, que es el link que se le
+pasa al vecino.
+
+`WEB_API_URL` es otra cosa y conviene no confundirlas: es a dónde manda los
+pedidos el servidor de desarrollo de Vite mientras se trabaja con `pnpm dev`, y
+es una dirección completa de tu máquina. Si se corre el puerto de la API, se
+corre también ahí.
+
 ## Versión de demostración
 
 `pnpm --filter @ecolentes/web demo` arma un único HTML que corre entero en el

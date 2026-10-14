@@ -376,12 +376,20 @@ export class ApiError extends Error {
  */
 type DemoHandler = <T>(path: string, init: RequestInit) => Promise<T>;
 
+/**
+ * De dónde cuelga la API. Es una ruta del mismo origen, no una dirección
+ * completa: así no hay que abrir CORS ni cargar un dominio en el build. Con la
+ * aplicación montada adentro de otro sitio se le pone el prefijo, por ejemplo
+ * `/ecolentes/api`, y el sitio de adelante reenvía eso a la API.
+ */
+const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const demo = (globalThis as { __ecolentesDemo?: DemoHandler }).__ecolentesDemo;
   if (demo) return demo<T>(path, init);
 
   const token = readToken();
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await fetch(`${API_BASE}/v1${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
