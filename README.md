@@ -275,6 +275,17 @@ pedidos el servidor de desarrollo de Vite mientras se trabaja con `pnpm dev`, y
 es una dirección completa de tu máquina. Si se corre el puerto de la API, se
 corre también ahí.
 
+Con `pnpm dev` no hay otro sitio adelante que saque el prefijo, así que lo saca
+el servidor de desarrollo: lee el mismo `VITE_API_BASE` y lo que le entra como
+`/ecolentes/api/v1/...` lo manda a la API como `/api/v1/...`. Por eso el login
+funciona igual trabajando local que publicado.
+
+Si al entrar el login responde 404, es que el pedido no llegó a la API: o se
+cambió `VITE_API_BASE` sin reiniciar `pnpm dev` (el valor viaja adentro del
+build), o el sitio de adelante reenvía `/ecolentes/api/*` sin sacarle el
+prefijo. Para distinguirlos, pedir `/ecolentes/api/v1/health`: si devuelve
+`{"status":"ok"}` el camino está bien y el problema es otro.
+
 ## Versión de demostración
 
 `pnpm --filter @ecolentes/web demo` arma un único HTML que corre entero en el

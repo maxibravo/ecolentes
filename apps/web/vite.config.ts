@@ -27,6 +27,10 @@ function cargarEnvDeLaRaiz(): void {
 
 cargarEnvDeLaRaiz();
 
+// Por dónde le pega el navegador a la API. Es la misma variable que lee el
+// front; acá se usa para armar la regla del proxy del servidor de desarrollo.
+const RUTA_DE_LA_API = (process.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
+
 export default defineConfig({
   plugins: [react()],
   // Las variables VITE_ del .env de la raíz tienen que llegar al navegador, no
@@ -52,9 +56,15 @@ export default defineConfig({
     // esperaba. Mejor que falle y lo diga.
     strictPort: true,
     proxy: {
-      '/api': {
+      // El navegador le pega a la API por donde diga VITE_API_BASE, que con la
+      // aplicación montada adentro de otro sitio lleva el prefijo
+      // (/ecolentes/api). Mientras se desarrolla no hay otro sitio adelante que
+      // se lo saque, así que se lo saca este proxy: lo que acá entra como
+      // /ecolentes/api/v1/... sale como /api/v1/... hacia la API.
+      [RUTA_DE_LA_API]: {
         target: process.env.WEB_API_URL ?? 'http://localhost:3000',
         changeOrigin: true,
+        rewrite: (ruta: string) => ruta.replace(RUTA_DE_LA_API, '/api'),
       },
     },
   },
