@@ -43,15 +43,17 @@ export function CasePhotos({
       <p className="muted">
         Son optativas. Cada vez que alguien abre una queda registrado en la auditoría.
       </p>
-      {kinds.map((kind) => (
-        <PhotoSlot
-          key={kind}
-          kind={kind}
-          detail={detail}
-          puedeCargar={puedeCargar(role, kind)}
-          onChange={onChange}
-        />
-      ))}
+      <div className="photo-slots">
+        {kinds.map((kind) => (
+          <PhotoSlot
+            key={kind}
+            kind={kind}
+            detail={detail}
+            puedeCargar={puedeCargar(role, kind)}
+            onChange={onChange}
+          />
+        ))}
+      </div>
     </article>
   );
 }

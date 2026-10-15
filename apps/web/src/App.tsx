@@ -42,6 +42,7 @@ function isPublicForm(): boolean {
 export function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [tab, setTab] = useState<Tab>('bandeja');
+  const [inboxView, setInboxView] = useState<'table' | 'kanban'>('table');
   const [openCaseId, setOpenCaseId] = useState<string | null>(null);
   const [openPersonId, setOpenPersonId] = useState<string | null>(null);
 
@@ -68,35 +69,51 @@ export function App() {
   return (
     <>
       <header className="topbar">
-        <strong>Ecolentes</strong>
-        <nav className="tabs">
+        <div className="brand">
+          <strong>Ecolentes</strong>
+          <span>Dirección de Salud</span>
+        </div>
+        <nav className="tabs" aria-label="Secciones">
           {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
               className={t.key === tab ? 'tab active' : 'tab'}
+              aria-current={t.key === tab ? 'page' : undefined}
               onClick={() => go(t.key)}
             >
               {t.label}
             </button>
           ))}
         </nav>
-        <span className="who">
-          {user.fullName} · {ROLE_LABELS[user.role]}
-        </span>
-        <button
-          type="button"
-          className="link"
-          onClick={() => {
-            writeToken(null);
-            setUser(null);
-          }}
-        >
-          Salir
-        </button>
+        <div className="session">
+          <span className="who">
+            {user.fullName} · {ROLE_LABELS[user.role]}
+          </span>
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              writeToken(null);
+              setUser(null);
+            }}
+          >
+            Salir
+          </button>
+        </div>
       </header>
 
       <main>
+        {tab === 'bandeja' && (
+          <div hidden={openCaseId !== null || openPersonId !== null}>
+            <CaseInbox
+              onOpen={setOpenCaseId}
+              role={user.role}
+              view={inboxView}
+              onView={setInboxView}
+            />
+          </div>
+        )}
         {openCaseId ? (
           <CaseDetail id={openCaseId} role={user.role} onBack={() => setOpenCaseId(null)} />
         ) : openPersonId ? (
@@ -106,8 +123,6 @@ export function App() {
             onBack={() => setOpenPersonId(null)}
             onOpenCase={setOpenCaseId}
           />
-        ) : tab === 'bandeja' ? (
-          <CaseInbox onOpen={setOpenCaseId} />
         ) : tab === 'personas' ? (
           <Search onOpen={setOpenPersonId} onOpenCase={setOpenCaseId} />
         ) : tab === 'redes' ? (
@@ -116,9 +131,9 @@ export function App() {
           <Reports role={user.role} onOpen={setOpenCaseId} />
         ) : tab === 'usuarios' ? (
           <Users me={user} />
-        ) : (
+        ) : tab === 'nuevo' ? (
           <NewCase onCreated={setOpenCaseId} />
-        )}
+        ) : null}
       </main>
     </>
   );

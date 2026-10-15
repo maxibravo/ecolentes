@@ -47,10 +47,25 @@ export function CaseDetail({
         ← Volver a la bandeja
       </button>
 
+      <header className="page-head">
+        <h2>{detail.code}</h2>
+        <p className="muted">
+          {hidePerson ? (
+            <span className="masked">
+              {p.firstName[0]}
+              {p.lastName[0]} · sólo iniciales
+            </span>
+          ) : (
+            <>
+              {p.lastName}, {p.firstName} · DNI {formatDni(p.dni)}
+            </>
+          )}
+        </p>
+      </header>
+
       <article className="card">
-        <div className="case-head">
-          <h2>{detail.code}</h2>
-          <span className="chip">{STAGE_LABELS[detail.stage]}</span>
+        <div className="case-status">
+          <span className="chip stage">{STAGE_LABELS[detail.stage]}</span>
           <span className={detail.overdue ? 'days late' : 'days'}>
             {daysSince(detail.stageSince)} días en esta etapa
           </span>
@@ -62,38 +77,33 @@ export function CaseDetail({
           </p>
         )}
 
-        <dl className="facts">
-          <dt>Persona</dt>
-          <dd>
-            {hidePerson ? (
-              <span className="masked">
-                {p.firstName[0]}
-                {p.lastName[0]} · sólo iniciales
-              </span>
-            ) : (
-              <>
-                {p.lastName}, {p.firstName} · DNI {formatDni(p.dni)}
-              </>
-            )}
-          </dd>
+        <dl className="fact-grid flush">
           {!hidePerson && (
             <>
-              <dt>Contacto</dt>
-              <dd>{p.phone ?? <span className="muted">Sin teléfono</span>}</dd>
-              <dt>Barrio</dt>
-              <dd>{p.neighborhood ?? <span className="muted">Sin dato</span>}</dd>
+              <div>
+                <dt>Contacto</dt>
+                <dd>{p.phone ?? <span className="muted">Sin teléfono</span>}</dd>
+              </div>
+              <div>
+                <dt>Barrio</dt>
+                <dd>{p.neighborhood ?? <span className="muted">Sin dato</span>}</dd>
+              </div>
             </>
           )}
-          <dt>Llegó por</dt>
-          <dd>{CHANNEL_LABELS[detail.channel]}</dd>
+          <div>
+            <dt>Llegó por</dt>
+            <dd>{CHANNEL_LABELS[detail.channel]}</dd>
+          </div>
           {!hidePerson && (
-            <>
+            <div>
               <dt>Óptica</dt>
               <dd>{detail.optician?.name ?? <span className="muted">Sin asignar</span>}</dd>
-            </>
+            </div>
           )}
-          <dt>Pares</dt>
-          <dd>{detail.pairs}</dd>
+          <div>
+            <dt>Pares</dt>
+            <dd>{detail.pairs}</dd>
+          </div>
         </dl>
       </article>
 
@@ -124,19 +134,25 @@ export function CaseDetail({
         <article className="card">
           <h3>Receta</h3>
           <p className="mono">{detail.prescription.rawText}</p>
-          <dl className="facts">
-            <dt>Ojo derecho</dt>
-            <dd>{eye(detail.prescription.farRightSphere, detail.prescription.farRightCylinder, detail.prescription.farRightAxis)}</dd>
-            <dt>Ojo izquierdo</dt>
-            <dd>{eye(detail.prescription.farLeftSphere, detail.prescription.farLeftCylinder, detail.prescription.farLeftAxis)}</dd>
-            <dt>Cerca</dt>
-            <dd>
+          <dl className="fact-grid flush">
+            <div>
+              <dt>Ojo derecho</dt>
+              <dd>{eye(detail.prescription.farRightSphere, detail.prescription.farRightCylinder, detail.prescription.farRightAxis)}</dd>
+            </div>
+            <div>
+              <dt>Ojo izquierdo</dt>
+              <dd>{eye(detail.prescription.farLeftSphere, detail.prescription.farLeftCylinder, detail.prescription.farLeftAxis)}</dd>
+            </div>
+            <div>
+              <dt>Cerca</dt>
+              <dd>
               {detail.prescription.nearAddition != null ? (
                 `ADD ${detail.prescription.nearAddition}`
               ) : (
                 <span className="muted">Sin adición</span>
               )}
-            </dd>
+              </dd>
+            </div>
           </dl>
           <p className={detail.prescription.validatedAt ? 'muted' : 'error'}>
             {detail.prescription.validatedAt
