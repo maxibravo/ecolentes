@@ -120,7 +120,11 @@ function PhotoSlot({
       {!puedeCargar && !saved && (
         <p className="muted">Sin foto de {ATTACHMENT_LABELS[kind].toLowerCase()}.</p>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

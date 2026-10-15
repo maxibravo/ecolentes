@@ -46,6 +46,7 @@ export function CaseInbox({
   const [atTime, setAtTime] = useState('');
   const [overdue, setOverdue] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [pending, setPending] = useState<{ item: CaseSummary; to: CaseStage } | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -217,12 +218,25 @@ export function CaseInbox({
                   setOnDate('');
                   setAtTime('');
                   setStage('');
+                  setOverdue(false);
                 }}
               >
                 Limpiar filtros
               </button>
             )}
+            {visible && (
+              <p className="muted count-line">
+                {stage
+                  ? `${visible.filter((c) => c.stage === stage).length} en ${STAGE_LABELS[stage]}`
+                  : visible.length === 1
+                    ? '1 en el tablero'
+                    : `${visible.length} en el tablero`}
+              </p>
+            )}
           </div>
+          {onDate && atTime && (
+            <p className="field-hint">La fecha y la hora se cumplen juntas.</p>
+          )}
         </div>
       )}
 
@@ -250,6 +264,11 @@ export function CaseInbox({
       {error && (
         <p className="form-error" role="alert">
           {error}
+        </p>
+      )}
+      {notice && !error && (
+        <p className="form-ok" role="status">
+          {notice}
         </p>
       )}
       {cases === null && !error && (
@@ -345,15 +364,12 @@ export function CaseInbox({
       )}
 
       {visible && visible.length > 0 && view === 'kanban' && (
+        <>
+        <p className="muted kanban-hint">Deslizá el tablero para ver el resto de las etapas.</p>
         <Kanban
-          cases={visible}
-          stages={
-            stage
-              ? [stage]
-              : role === 'OPTICIAN'
-                ? OPTICIAN_STAGES
-                : STAGE_ORDER
-          }
+          cases={stage ? visible.filter((item) => item.stage === stage) : visible}
+          stages={role === 'OPTICIAN' ? OPTICIAN_STAGES : STAGE_ORDER}
+          focusStage={stage}
           role={role}
           movingId={movingId}
           selected={selected}
@@ -363,6 +379,7 @@ export function CaseInbox({
           onToggle={toggleSelected}
           onToggleMany={toggleMany}
         />
+        </>
       )}
 
       {pending && (
@@ -421,6 +438,8 @@ export function CaseInbox({
       );
       setSelected((prev) => dropSelected(prev, [item.id]));
       setPending(null);
+      setNotice(`${item.code} pasó a ${STAGE_LABELS[to]}.`);
+      revealCase(item.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo mover el expediente');
     } finally {
@@ -456,6 +475,12 @@ export function CaseInbox({
         }) ?? prev,
       );
       setSelected((prev) => dropSelected(prev, moved));
+      setNotice(
+        moved.length === 1
+          ? `${movable.find((item) => item.id === moved[0])?.code ?? '1 expediente'} pasó a ${STAGE_LABELS[to]}.`
+          : `${moved.length} expedientes pasaron a ${STAGE_LABELS[to]}.`,
+      );
+      revealCase(moved[0]!);
     }
     if (failed.length > 0) setError(failed.join(' · '));
     setMovingId(null);
@@ -538,13 +563,32 @@ function localMinute(iso: string): string {
 }
 
 function whenInStage(iso: string): string {
-  return new Date(iso).toLocaleString('es-AR', {
+  const date = new Date(iso);
+  const sameDay = date.toDateString() === new Date().toDateString();
+  if (sameDay) {
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleString('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function deliveredOf(item: CaseSummary): number {
+  return item.glasses.filter((pair) => pair.deliveredAt).length;
+}
+
+function revealCase(id: string) {
+  window.setTimeout(() => {
+    document.querySelector(`[data-case="${id}"]`)?.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
+  }, 60);
 }
 
 function dropSelected(selected: ReadonlySet<string>, ids: string[]): ReadonlySet<string> {
@@ -600,9 +644,41 @@ function SelectionBar({
   );
 }
 
+function ColumnSelect({
+  ids,
+  selected,
+  label,
+  onToggleMany,
+}: {
+  ids: string[];
+  selected: ReadonlySet<string>;
+  label: string;
+  onToggleMany: (ids: string[], on: boolean) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const all = ids.every((id) => selected.has(id));
+  const some = ids.some((id) => selected.has(id));
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = some && !all;
+  }, [some, all]);
+  return (
+    <label className="kanban-check" title="Seleccionar todos">
+      <input
+        ref={ref}
+        className="kanban-select-all"
+        type="checkbox"
+        checked={all}
+        aria-label={label}
+        onChange={(event) => onToggleMany(ids, event.target.checked)}
+      />
+    </label>
+  );
+}
+
 function Kanban({
   cases,
   stages,
+  focusStage,
   role,
   movingId,
   selected,
@@ -614,6 +690,7 @@ function Kanban({
 }: {
   cases: CaseSummary[];
   stages: CaseStage[];
+  focusStage: CaseStage | '';
   role: Role;
   movingId: string | null;
   selected: ReadonlySet<string>;
@@ -635,7 +712,7 @@ function Kanban({
   const targets = dragTargets(dragGroup, role);
 
   return (
-    <div className="kanban">
+    <div className={draggingId ? 'kanban is-dragging' : 'kanban'} aria-label="Tablero del circuito">
       {stages.map((stage) => {
         const items = cases.filter((c) => c.stage === stage);
         const late = items.filter((c) => c.overdue).length;
@@ -644,6 +721,8 @@ function Kanban({
           'kanban-col',
           accepts ? 'drop-ok' : '',
           dragOver === stage ? 'drop-on' : '',
+          focusStage === stage ? 'is-focus' : '',
+          focusStage && focusStage !== stage ? 'is-quiet' : '',
         ]
           .filter(Boolean)
           .join(' ');
@@ -679,30 +758,30 @@ function Kanban({
             }}
           >
             <header>
-              <h3>{STAGE_LABELS[stage]}</h3>
-              <span className="kanban-count">
-                {items.length > 0 && (
-                  <input
-                    className="kanban-select-all"
-                    type="checkbox"
-                    checked={items.every((c) => selected.has(c.id))}
-                    aria-label={`Seleccionar todos en ${STAGE_LABELS[stage]}`}
-                    onChange={(event) =>
-                      onToggleMany(
-                        items.map((c) => c.id),
-                        event.target.checked,
-                      )
-                    }
+              <div className="kanban-title">
+                {items.length > 0 ? (
+                  <ColumnSelect
+                    ids={items.map((c) => c.id)}
+                    selected={selected}
+                    label={`Seleccionar todos en ${STAGE_LABELS[stage]}`}
+                    onToggleMany={onToggleMany}
                   />
+                ) : (
+                  <span className="kanban-check" aria-hidden="true" />
                 )}
-                {items.length}
-                {late > 0 && <span className="badge late">{late}</span>}
-              </span>
+                <h3>{STAGE_LABELS[stage]}</h3>
+                <span className="kanban-count">{items.length}</span>
+              </div>
+              {late > 0 && (
+                <p className="late-note">
+                  {late === 1 ? '1 pasó el plazo' : `${late} pasaron el plazo`}
+                </p>
+              )}
             </header>
             <ol>
-              {items.length === 0 && (
+              {items.length === 0 && (accepts || !focusStage || focusStage === stage) && (
                 <li>
-                  <p className="muted">{accepts ? 'Soltar acá' : 'Ninguno'}</p>
+                  <p className="muted">{accepts ? 'Soltá acá' : 'Sin expedientes'}</p>
                 </li>
               )}
               {items.map((c) => {
@@ -712,6 +791,7 @@ function Kanban({
                 return (
                   <li key={c.id}>
                     <article
+                      data-case={c.id}
                       className={[
                         'kanban-card',
                         c.overdue ? 'late' : '',
@@ -776,9 +856,16 @@ function Kanban({
                           DNI {formatDni(c.person.dni)}
                           {c.person.neighborhood ? ` · ${c.person.neighborhood}` : ''}
                         </span>
+                        <span className="muted">
+                          {deliveredOf(c)} de {c.pairs} {c.pairs === 1 ? 'par' : 'pares'}
+                          {c.glasses.length > 0
+                            ? ` · ${c.glasses.map((pair) => pair.code).join(' · ')}`
+                            : ''}
+                        </span>
                         <span className={c.overdue ? 'days late' : 'days'}>
                           {stayLabel(c.stageSince)} · {whenInStage(c.stageSince)}
                         </span>
+                        {c.overdue && <span className="chip hold">Pasó el plazo</span>}
                         {c.hold && <span className="chip hold">{HOLD_LABELS[c.hold]}</span>}
                       </div>
                       </div>
@@ -907,19 +994,44 @@ function MoveDialog({
   ) => void;
 }) {
   const who = `${item.person.lastName}, ${item.person.firstName}`;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const field = dialog?.querySelector<HTMLElement>('input:not([type="checkbox"]), textarea, select');
+    const primary = dialog?.querySelector<HTMLElement>('.actions button:not(.secondary)');
+    (field ?? primary)?.focus();
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') cancelRef.current();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      previous?.focus();
+    };
+  }, []);
 
   return (
-    <div className="sheet-backdrop" role="presentation" onMouseDown={onCancel}>
+    <div className="sheet-backdrop" role="presentation" onClick={onCancel}>
       <div
+        ref={dialogRef}
         className="sheet"
         role="dialog"
         aria-modal="true"
         aria-labelledby="mover-titulo"
-        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
-        <h3 id="mover-titulo">
-          {item.code} · {who}
-        </h3>
+        <div className="sheet-head">
+          <h3 id="mover-titulo">
+            {item.code} · {who}
+          </h3>
+          <button type="button" className="secondary" onClick={onCancel}>
+            Cerrar
+          </button>
+        </div>
         {item.stage === 'OPTICIAN_QUOTE' && <QuoteFields busy={busy} onCancel={onCancel} onCommit={onCommit} caseId={item.id} />}
         {item.stage === 'APPROVAL' && to === 'PRODUCTION' && (
           <ApproveFields busy={busy} onCancel={onCancel} onCommit={onCommit} caseId={item.id} />
@@ -972,11 +1084,11 @@ function QuoteFields({
       <input id="armazon" value={frame} onChange={(e) => setFrame(e.target.value)} required />
       <div className="grid">
         <div>
-          <label htmlFor="plazo">Días de fabricación</label>
+          <label htmlFor="plazo">Días de fabricación (opcional)</label>
           <input id="plazo" type="number" min="0" value={leadDays} onChange={(e) => setLeadDays(e.target.value)} />
         </div>
         <div>
-          <label htmlFor="monto">Monto</label>
+          <label htmlFor="monto">Monto (opcional)</label>
           <input id="monto" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
       </div>

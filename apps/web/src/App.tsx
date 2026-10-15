@@ -115,7 +115,29 @@ export function App() {
           </div>
         )}
         {openCaseId ? (
-          <CaseDetail id={openCaseId} role={user.role} onBack={() => setOpenCaseId(null)} />
+          <CaseDetail
+            id={openCaseId}
+            role={user.role}
+            backLabel={
+              openPersonId
+                ? 'Volver a la ficha'
+                : tab === 'personas'
+                  ? 'Volver a personas'
+                  : tab === 'redes'
+                    ? 'Volver a redes'
+                    : tab === 'indicadores'
+                      ? 'Volver a indicadores'
+                      : tab === 'nuevo'
+                        ? 'Volver al pedido nuevo'
+                        : 'Volver a la bandeja'
+            }
+            onBack={() => setOpenCaseId(null)}
+            onOpenPerson={(personId) => {
+              setOpenCaseId(null);
+              setOpenPersonId(personId);
+              setTab('personas');
+            }}
+          />
         ) : openPersonId ? (
           <PersonDetail
             id={openPersonId}
