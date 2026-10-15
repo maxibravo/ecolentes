@@ -11,6 +11,58 @@ entregan por separado.
 
 ## El circuito de un vistazo
 
+Cada caja es una etapa; el color dice qué perfil la mueve y la flecha, qué
+hace para pasarla a la siguiente.
+
+```mermaid
+flowchart TD
+    IN(["Pedido: territorio, concejales,<br/>redes o formulario público"])
+    S1["<b>1 · Solicitud</b><br/>Operador · 7 días"]
+    S2["<b>2 · Evaluación y receta</b><br/>Oftalmólogo · 15 días"]
+    S3["<b>3 · Propuesta óptica</b><br/>Óptica · 5 días"]
+    S4{"<b>4 · Aprobación</b><br/>Dirección · 3 días"}
+    S5["<b>5 · Producción</b><br/>Óptica · 15 días"]
+    S6["<b>6 · Recepción municipal</b><br/>Operador · 3 días"]
+    S7["<b>7 · Para entregar</b><br/>Operador · 10 días"]
+    S8["<b>8 · Entregado</b><br/>Operador · 30 días"]
+    S9(["<b>9 · Cerrado</b><br/>no se mueve más"])
+
+    IN -- "busca por DNI y carga la ficha" --> S1
+    S1 -- "manda a evaluación" --> S2
+    S2 -- "receta validada por el oftalmólogo" --> S3
+    S3 -- "carga cristales, armazón, plazo y precio" --> S4
+    S4 -- "aprueba: nacen los ANT-0042" --> S5
+    S4 -. "observa con qué corregir:<br/>vuelve a la óptica" .-> S3
+    S5 -- "entrega los anteojos en el municipio" --> S6
+    S6 -- "los controla contra la receta" --> S7
+    S7 -- "registra quién retiró" --> S8
+    S8 -- "cierra cuando no queda nada pendiente" --> S9
+
+    subgraph LEG["Quién la mueve"]
+        direction LR
+        L1["Operador"]:::operador
+        L2["Oftalmólogo"]:::oftalmologo
+        L3["Óptica"]:::optica
+        L4["Dirección"]:::direccion
+    end
+
+    style LEG fill:#ffffff,stroke:#d1d5db
+
+    class IN entrada
+    class S1,S6,S7,S8 operador
+    class S2 oftalmologo
+    class S3,S5 optica
+    class S4 direccion
+    class S9 cerrado
+
+    classDef entrada fill:#f3f4f6,stroke:#6b7280,color:#111827
+    classDef operador fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef oftalmologo fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef optica fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef direccion fill:#fce7f3,stroke:#be185d,color:#831843
+    classDef cerrado fill:#e5e7eb,stroke:#374151,color:#111827
+```
+
 | # | Etapa | La deja quién | Pasa a | Plazo |
 |---|-------|---------------|--------|-------|
 | 1 | Solicitud | Operador | Evaluación y receta | 7 días |
@@ -26,6 +78,36 @@ entregan por separado.
 El administrador puede mover cualquiera de esas etapas, para destrabar cuando
 falta alguien. Es la única excepción, y queda registrada igual que todo lo demás.
 De "cerrado" no lo mueve nadie.
+
+## Quién le pasa a quién
+
+La misma historia contada desde los perfiles, para ver en qué momento cada uno
+recibe el expediente y qué devuelve, sin tener que entrar con cada usuario.
+
+```mermaid
+sequenceDiagram
+    actor P as Persona
+    participant OP as Operador
+    participant OF as Oftalmólogo
+    participant OT as Óptica
+    participant DI as Dirección
+
+    P->>OP: Pide anteojos (territorio, concejal, redes o formulario)
+    OP->>OP: Busca por DNI, carga la ficha y crea ECO-0042
+    OP->>OF: Manda a evaluación
+    OF->>OF: Carga y valida la receta
+    OF->>OT: Pasa a la óptica asignada
+    OT->>DI: Propone cristales, armazón, plazo y precio
+    alt Dirección observa
+        DI-->>OT: Vuelve con qué corregir
+        OT->>DI: Carga una propuesta nueva
+    end
+    DI->>OT: Aprueba: nacen los ANT-0042 y pasa a producción
+    OT->>OP: Fabrica y entrega los anteojos en el municipio
+    OP->>OP: Los controla contra la receta
+    OP->>P: Entrega y registra quién retiró
+    OP->>OP: Cierra el expediente
+```
 
 El plazo no frena nada: pasado ese tiempo el expediente aparece marcado en rojo
 en la bandeja y cuenta como "fuera de plazo" en los indicadores. Sirve para
